@@ -1,0 +1,23 @@
+appId: com.ai-agent.app
+productName: ai-agent
+directories:
+  output: release
+files:
+  - dist
+  - dist-electron
+extraResources:
+  - resources/icon-*.png
+linux:
+  target:
+    - deb
+    - AppImage
+  category: Utility
+  icon: resources/icon.png
+mac:
+  target:
+    - dmg
+  icon: resources/icon.png
+win:
+  target:
+    - nsis
+  icon: resources/icon.png
