@@ -16,6 +16,11 @@ const defaultSettings: AppSettings = {
   windowMode: 'cursor',
   pinnedPosition: { x: 100, y: 100 },
   theme: 'dark',
+  accentColor: '#2563eb',
+  bgColor: '#1e293b',
+  headerColor: '#0f172a',
+  textColor: '#e2e8f0',
+  fontSize: 'md',
 }
 
 function isAscii(s: string): boolean {

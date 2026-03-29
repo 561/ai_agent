@@ -117,7 +117,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop 
 
   return (
     <div
-      className="flex flex-col h-full"
+      className="flex flex-col h-full min-h-0"
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
     >

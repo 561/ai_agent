@@ -64,24 +64,20 @@ function toggleWindow() {
 function showWindowAtCursor() {
   if (!mainWindow) return
 
-  // Read stored preference for window mode
-  const windowMode = 'cursor' // will be read from store via IPC
+  const cursorPoint = screen.getCursorScreenPoint()
+  const display = screen.getDisplayNearestPoint(cursorPoint)
+  const bounds = display.workArea
+  const [winWidth, winHeight] = mainWindow.getSize()
 
-  if (windowMode === 'cursor') {
-    const cursorPoint = screen.getCursorScreenPoint()
-    const display = screen.getDisplayNearestPoint(cursorPoint)
-    const bounds = display.workArea
+  // Center window on cursor
+  let x = cursorPoint.x - Math.round(winWidth / 2)
+  let y = cursorPoint.y - Math.round(winHeight / 2)
 
-    let x = cursorPoint.x - 240
-    let y = cursorPoint.y - 40
+  // Keep window within screen bounds
+  x = Math.max(bounds.x, Math.min(x, bounds.x + bounds.width - winWidth))
+  y = Math.max(bounds.y, Math.min(y, bounds.y + bounds.height - winHeight))
 
-    // Keep window within screen bounds
-    x = Math.max(bounds.x, Math.min(x, bounds.x + bounds.width - 480))
-    y = Math.max(bounds.y, Math.min(y, bounds.y + bounds.height - 640))
-
-    mainWindow.setPosition(x, y)
-  }
-
+  mainWindow.setPosition(x, y)
   mainWindow.show()
   mainWindow.focus()
 }

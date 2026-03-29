@@ -16,11 +16,86 @@ body,
   overflow: hidden;
 }
 
+:root {
+  --accent: #2563eb;
+  --bg: #1e293b;
+  --font-size: 15px;
+}
+
+html {
+  font-size: var(--font-size);
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Text color — applies everywhere */
+body, .dark body {
+  color: var(--text) !important;
+}
+
+/* Surface color — buttons, inputs, panels */
+.bg-surface-800, .dark .bg-surface-800 {
+  background-color: var(--header) !important;
+}
+.bg-surface-700, .dark .bg-surface-700 {
+  background-color: color-mix(in srgb, var(--header) 80%, white 20%) !important;
+}
+.bg-surface-100, .dark .bg-surface-100 {
+  background-color: var(--header) !important;
+}
+.bg-surface-200, .dark .bg-surface-200 {
+  background-color: color-mix(in srgb, var(--header) 80%, white 20%) !important;
+}
+.bg-surface-300, .dark .bg-surface-300 {
+  background-color: color-mix(in srgb, var(--header) 65%, white 35%) !important;
+}
+.bg-surface-900, .dark .bg-surface-900 {
+  background-color: var(--bg) !important;
+}
+
+/* Gray text — inherit from --text with reduced opacity */
+.text-gray-400, .text-gray-500 {
+  color: color-mix(in srgb, var(--text) 60%, transparent) !important;
+}
+.text-gray-600, .text-gray-700 {
+  color: color-mix(in srgb, var(--text) 75%, transparent) !important;
+}
+.text-gray-900, .dark\:text-white, .dark\:text-gray-100 {
+  color: var(--text) !important;
+}
+
+/* Accent color overrides — applied after Tailwind */
+.bg-blue-600,
+button.bg-blue-600 {
+  background-color: var(--accent) !important;
+}
+.hover\:bg-blue-700:hover {
+  background-color: color-mix(in srgb, var(--accent) 80%, black) !important;
+}
+.text-blue-500,
+.text-blue-600 {
+  color: var(--accent) !important;
+}
+.text-blue-400,
+.\[&_a\]\:text-blue-500 a {
+  color: color-mix(in srgb, var(--accent) 85%, white) !important;
+}
+.border-blue-400 {
+  border-color: var(--accent) !important;
+}
+.focus\:ring-blue-500:focus {
+  --tw-ring-color: var(--accent) !important;
+}
+.hover\:border-blue-400:hover {
+  border-color: var(--accent) !important;
+}
+.hover\:text-blue-400:hover {
+  color: color-mix(in srgb, var(--accent) 85%, white) !important;
 }
 
 /* Scrollbar */

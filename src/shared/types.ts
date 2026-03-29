@@ -41,6 +41,11 @@ export interface AppSettings {
   windowMode: 'cursor' | 'pinned'
   pinnedPosition: { x: number; y: number }
   theme: 'light' | 'dark'
+  accentColor: string
+  bgColor: string
+  headerColor: string
+  textColor: string
+  fontSize: 'sm' | 'md' | 'lg'
 }
 
 export interface IpcChannels {

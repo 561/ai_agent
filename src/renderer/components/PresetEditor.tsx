@@ -8,10 +8,11 @@ interface Props {
   onAdd: (preset: Preset) => void
   onRemove: (id: string) => void
   onClose: () => void
+  initialEditingId?: string | null
 }
 
-export function PresetEditor({ presets, onUpdate, onAdd, onRemove, onClose }: Props) {
-  const [editingId, setEditingId] = useState<string | null>(null)
+export function PresetEditor({ presets, onUpdate, onAdd, onRemove, onClose, initialEditingId }: Props) {
+  const [editingId, setEditingId] = useState<string | null>(initialEditingId || null)
 
   const handleAdd = () => {
     const newPreset: Preset = {
@@ -25,7 +26,7 @@ export function PresetEditor({ presets, onUpdate, onAdd, onRemove, onClose }: Pr
   }
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-surface-900">
+    <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-3 border-b border-surface-200 dark:border-surface-700">
         <h2 className="text-sm font-semibold dark:text-white">Edit Presets</h2>
         <button
@@ -83,13 +84,24 @@ export function PresetEditor({ presets, onUpdate, onAdd, onRemove, onClose }: Pr
                 </div>
               </div>
             ) : (
-              <div
-                className="flex items-center gap-2 cursor-pointer"
-                onClick={() => setEditingId(preset.id)}
-              >
-                <span>{preset.icon}</span>
-                <span className="text-sm dark:text-white">{preset.name}</span>
-                <span className="ml-auto text-xs text-gray-400">edit</span>
+              <div className="flex items-center gap-2">
+                <div
+                  className="flex items-center gap-2 flex-1 cursor-pointer"
+                  onClick={() => setEditingId(preset.id)}
+                >
+                  <span>{preset.icon}</span>
+                  <span className="text-sm dark:text-white">{preset.name}</span>
+                  <span className="ml-auto text-xs px-2 py-0.5 rounded" style={{ backgroundColor: 'var(--header)', opacity: 0.7 }}>edit</span>
+                </div>
+                <button
+                  onClick={() => onRemove(preset.id)}
+                  className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex-shrink-0"
+                  title="Delete"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" />
+                  </svg>
+                </button>
               </div>
             )}
           </div>

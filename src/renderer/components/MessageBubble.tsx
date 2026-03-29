@@ -21,11 +21,8 @@ export function MessageBubble({ message }: Props) {
   return (
     <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} mb-3`}>
       <div
-        className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
-          isUser
-            ? 'bg-blue-600 text-white'
-            : 'bg-surface-200 dark:bg-surface-700 text-gray-900 dark:text-gray-100'
-        }`}
+        className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${isUser ? 'bg-blue-600 text-white' : ''}`}
+        style={!isUser ? { backgroundColor: 'var(--header)' } : undefined}
       >
         {message.images?.map((img, i) => (
           <img
@@ -38,7 +35,7 @@ export function MessageBubble({ message }: Props) {
         {isUser ? (
           <p className="whitespace-pre-wrap text-sm">{message.content}</p>
         ) : (
-          <div className="prose prose-sm dark:prose-invert max-w-none text-sm">
+          <div className="prose prose-sm dark:prose-invert max-w-none text-sm [&_p]:my-1 [&_strong]:text-base [&_a]:text-blue-500 [&_a]:underline [&_a:hover]:text-blue-400 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:my-1">
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               rehypePlugins={[rehypeHighlight]}
