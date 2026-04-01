@@ -111,6 +111,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
 
     mediaRecorder.onstop = async () => {
       stream.getTracks().forEach((t) => t.stop())
+      setIsRecording(false)
       const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
       setIsTranscribing(true)
       try {
@@ -128,9 +129,11 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
           setInput((prev) => (prev ? prev + ' ' + data.text : data.text))
           textareaRef.current?.focus()
           navigator.clipboard.writeText(data.text).catch(() => {})
+        } else {
+          alert('Transcription returned empty result.\n' + JSON.stringify(data))
         }
-      } catch {
-        alert('Transcription failed. Check your Groq API key in Settings.')
+      } catch (err) {
+        alert('Transcription failed. Check your Groq API key in Settings.\n' + String(err))
       } finally {
         setIsTranscribing(false)
       }
