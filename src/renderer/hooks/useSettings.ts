@@ -40,5 +40,17 @@ export function usePresets() {
     setPresets((prev) => prev.filter((p) => p.id !== id))
   }
 
-  return { presets, addPreset, updatePreset, removePreset, setPresets }
+  const reorderPresets = (fromId: string, toId: string) => {
+    setPresets((prev) => {
+      const from = prev.findIndex((p) => p.id === fromId)
+      const to = prev.findIndex((p) => p.id === toId)
+      if (from === -1 || to === -1 || from === to) return prev
+      const next = [...prev]
+      const [item] = next.splice(from, 1)
+      next.splice(to, 0, item)
+      return next
+    })
+  }
+
+  return { presets, addPreset, updatePreset, removePreset, reorderPresets, setPresets }
 }

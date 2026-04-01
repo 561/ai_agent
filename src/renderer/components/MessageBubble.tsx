@@ -44,7 +44,7 @@ export function MessageBubble({ message }: Props) {
                 code: ({ inline, className, children, ...props }: any) => {
                   const isInline = inline || !className?.includes('language-')
                   if (isInline) {
-                    return <code className="bg-surface-300 dark:bg-surface-600 rounded text-xs" style={{ padding: `var(--padding-xs) ${6 * 0.375}px`, display: 'inline' }} {...props}>{children}</code>
+                    return <code className="bg-surface-300 dark:bg-surface-600 rounded text-xs" style={{ padding: `var(--padding-xs) ${6 * 0.375}px`, display: 'inline', wordBreak: 'break-all' }} {...props}>{children}</code>
                   }
                   const codeText = String(children).replace(/\n$/, '')
                   const match = /language-(\w+)/.exec(className || '')

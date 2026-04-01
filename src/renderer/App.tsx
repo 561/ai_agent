@@ -11,7 +11,7 @@ type View = 'chat' | 'settings' | 'presets'
 
 export function App() {
   const { settings, updateSettings } = useSettings()
-  const { presets, addPreset, updatePreset, removePreset } = usePresets()
+  const { presets, addPreset, updatePreset, removePreset, reorderPresets } = usePresets()
   const [activePresetId, setActivePresetId] = useState(presets[0]?.id || 'general')
   const [view, setView] = useState<View>('chat')
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null)
@@ -180,6 +180,7 @@ export function App() {
             onEditPreset={handleEditPreset}
             onClearConversation={handleClearConversation}
             onDeletePreset={handleDeletePreset}
+            onReorder={reorderPresets}
             headerColor={settings.headerColor || '#0f172a'}
             textColor={settings.textColor || '#e2e8f0'}
           />

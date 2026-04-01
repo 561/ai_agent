@@ -11,6 +11,7 @@ interface Props {
   onEditPreset: (presetId: string) => void
   onClearConversation: (presetId: string) => void
   onDeletePreset: (presetId: string) => void
+  onReorder: (fromId: string, toId: string) => void
   headerColor?: string
   textColor?: string
 }
@@ -21,9 +22,11 @@ interface ContextMenu {
   y: number
 }
 
-export function TabBar({ presets, activePresetId, onSelect, onSettings, onHide, onAdd, onEditPreset, onClearConversation, onDeletePreset, headerColor, textColor }: Props) {
+export function TabBar({ presets, activePresetId, onSelect, onSettings, onHide, onAdd, onEditPreset, onClearConversation, onDeletePreset, onReorder, headerColor, textColor }: Props) {
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const dragIdRef = useRef<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
 
   useEffect(() => {
     const handleClick = () => setContextMenu(null)
@@ -49,14 +52,26 @@ export function TabBar({ presets, activePresetId, onSelect, onSettings, onHide, 
       {presets.map((preset) => (
         <button
           key={preset.id}
+          draggable
           onClick={() => onSelect(preset.id)}
           onContextMenu={(e) => handleContextMenu(e, preset.id)}
+          onDragStart={() => { dragIdRef.current = preset.id }}
+          onDragOver={(e) => { e.preventDefault(); setDragOverId(preset.id) }}
+          onDragLeave={() => setDragOverId(null)}
+          onDrop={() => {
+            if (dragIdRef.current && dragIdRef.current !== preset.id) {
+              onReorder(dragIdRef.current, preset.id)
+            }
+            dragIdRef.current = null
+            setDragOverId(null)
+          }}
+          onDragEnd={() => { dragIdRef.current = null; setDragOverId(null) }}
           style={{ WebkitAppRegion: 'no-drag', padding: `var(--padding-sm) var(--padding)`, gap: 'var(--padding-xs)' } as React.CSSProperties}
           className={`flex items-center rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
             activePresetId === preset.id
               ? 'bg-blue-600 text-white'
               : 'text-gray-600 dark:text-gray-400 hover:bg-surface-200 dark:hover:bg-surface-700'
-          }`}
+          } ${dragOverId === preset.id && dragIdRef.current !== preset.id ? 'ring-2 ring-blue-400 ring-inset' : ''}`}
         >
           {preset.icon && <span>{preset.icon}</span>}
           {preset.name}
