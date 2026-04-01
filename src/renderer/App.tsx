@@ -105,6 +105,12 @@ export function App() {
     sendMessage(content, images, systemInstruction, convId)
   }
 
+  useEffect(() => {
+    if (activeConversation) {
+      console.log(`[tab: ${activeConversation.presetId}]`, activeConversation.messages)
+    }
+  }, [activeConversationId])
+
   // Sync windowMode changes to main process
   useEffect(() => {
     // @ts-ignore

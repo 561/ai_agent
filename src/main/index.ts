@@ -152,14 +152,14 @@ app.whenReady().then(() => {
 
   // Allow microphone access for Web Speech API
   session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
-    if (permission === 'media' || permission === 'microphone') {
+    if (permission === 'media') {
       callback(true)
     } else {
       callback(false)
     }
   })
   session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
-    return permission === 'media' || permission === 'microphone'
+    return permission === 'media'
   })
 
   createWindow()

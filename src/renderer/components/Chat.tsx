@@ -168,7 +168,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
       onDrop={handleDrop}
     >
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto" style={{ padding: 'var(--padding)' }}>
+      <div className="flex-1 overflow-y-auto" style={{ padding: 'calc(var(--padding) * 1.4)' }}>
         {messages.length === 0 && !isStreaming && (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">
             Start typing to begin a conversation
@@ -194,12 +194,12 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
       <ImagePreview images={images} onRemove={(i) => setImages((prev) => prev.filter((_, idx) => idx !== i))} />
 
       {/* Input */}
-      <div className="border-t border-surface-200 dark:border-surface-700" style={{ padding: 'var(--padding-sm)' }}>
+      <div className="border-t border-surface-200 dark:border-surface-700" style={{ padding: '  var(--padding-sm)' }}>
         <div className="flex items-end" style={{ gap: 'var(--gap)' }}>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex-shrink-0 rounded-lg text-gray-500 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-            style={{ padding: 'var(--padding-sm)' }}
+            className="flex-shrink-0 mb-1 rounded-lg text-gray-500 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+            style={{ padding: '0  0 var(--padding-xs) var(--padding-xs)' }}
             title="Attach image"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -230,7 +230,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
           <button
             onClick={handleMicClick}
             disabled={isTranscribing}
-            className={`flex-shrink-0 rounded-xl transition-colors ${
+            className={`flex-shrink-0 mb-0.5 rounded-xl transition-colors ${
               isRecording
                 ? 'bg-red-500 text-white animate-pulse'
                 : isTranscribing
@@ -257,7 +257,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
           {isStreaming ? (
             <button
               onClick={onStop}
-              className="flex-shrink-0 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
+              className="flex-shrink-0 mb-0.5 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
               style={{ padding: 'var(--padding-sm)' }}
               title="Stop"
             >
@@ -269,7 +269,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
             <button
               onClick={handleSubmit}
               disabled={!input.trim() && images.length === 0}
-              className="flex-shrink-0 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex-shrink-0 mb-0.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               style={{ padding: 'var(--padding-sm)' }}
               title="Send"
             >

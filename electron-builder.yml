@@ -8,8 +8,6 @@ files:
 extraResources:
   - resources/icon-*.png
 linux:
-  depends:
-    - xdotool
   target:
     - deb
     - AppImage
@@ -18,6 +16,10 @@ linux:
   extraResources:
     - from: /usr/bin/xdotool
       to: bin/xdotool
+deb:
+  depends:
+    - xdotool
+  afterInstall: build/postinst
 mac:
   target:
     - dmg

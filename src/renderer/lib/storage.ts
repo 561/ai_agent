@@ -35,7 +35,6 @@ export function loadSettings(): AppSettings {
       const parsed = { ...defaultSettings, ...JSON.parse(stored) }
       // Reset non-ASCII hotkeys to defaults
       if (!isAscii(parsed.hotkey)) parsed.hotkey = defaultSettings.hotkey
-      if (!isAscii(parsed.selectionHotkey)) parsed.selectionHotkey = defaultSettings.selectionHotkey
       return parsed
     }
   } catch {}

@@ -1,6 +1,6 @@
 {
   "name": "ai-agent",
-  "version": "1.2.0",
+  "version": "1.2.2",
   "description": "Multi-platform AI assistant with global hotkey, chat presets, and multi-provider support",
   "main": "dist-electron/main/index.js",
   "scripts": {
