@@ -17,6 +17,8 @@ export interface Preset {
   name: string
   systemInstruction: string
   icon?: string
+  llmProvider?: LLMProvider
+  llmModel?: string
 }
 
 export interface Conversation {
@@ -34,10 +36,11 @@ export interface AppSettings {
     gemini: string
     claude: string
     openai: string
+    groq: string
   }
   activeProvider: LLMProvider
+  geminiModel: string
   hotkey: string
-  selectionHotkey: string
   windowMode: 'cursor' | 'pinned'
   pinnedPosition: { x: number; y: number }
   theme: 'light' | 'dark'
@@ -45,7 +48,7 @@ export interface AppSettings {
   bgColor: string
   headerColor: string
   textColor: string
-  fontSize: 'sm' | 'md' | 'lg'
+  fontSize: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 }
 
 export interface IpcChannels {

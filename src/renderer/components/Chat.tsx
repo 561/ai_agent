@@ -9,36 +9,24 @@ interface Props {
   streamingText: string
   onSend: (content: string, images: ImageAttachment[]) => void
   onStop: () => void
+  groqApiKey?: string
 }
 
-export function Chat({ conversation, isStreaming, streamingText, onSend, onStop }: Props) {
+export function Chat({ conversation, isStreaming, streamingText, onSend, onStop, groqApiKey }: Props) {
   const [input, setInput] = useState('')
   const [images, setImages] = useState<ImageAttachment[]>([])
+  const [isRecording, setIsRecording] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [conversation?.messages, streamingText])
 
-  useEffect(() => {
-    // Listen for selected text from main process
-    const handleSelection = (_event: any, text: string) => {
-      setInput((prev) => (prev ? prev + '\n' + text : text))
-      textareaRef.current?.focus()
-    }
-
-    // @ts-ignore
-    if (window.require) {
-      // @ts-ignore
-      const { ipcRenderer } = window.require('electron')
-      ipcRenderer.on('selection-text', handleSelection)
-      return () => {
-        ipcRenderer.removeListener('selection-text', handleSelection)
-      }
-    }
-  }, [])
 
   const handleSubmit = () => {
     const trimmed = input.trim()
@@ -94,6 +82,64 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop 
     }
   }, [])
 
+  const handleMicClick = async () => {
+    if (isRecording) {
+      mediaRecorderRef.current?.stop()
+      return
+    }
+
+    if (!groqApiKey) {
+      alert('Voice input requires a Groq API key (free).\nGet one at console.groq.com and add it in Settings.')
+      return
+    }
+
+    let stream: MediaStream
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    } catch {
+      alert('Microphone access denied.')
+      return
+    }
+
+    audioChunksRef.current = []
+    const mediaRecorder = new MediaRecorder(stream)
+    mediaRecorderRef.current = mediaRecorder
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunksRef.current.push(e.data)
+    }
+
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach((t) => t.stop())
+      const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' })
+      setIsTranscribing(true)
+      try {
+        const formData = new FormData()
+        formData.append('file', blob, 'audio.webm')
+        formData.append('model', 'whisper-large-v3')
+        // no language → Groq Whisper auto-detects (ru, en, etc.)
+        const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${groqApiKey}` },
+          body: formData,
+        })
+        const data = await res.json()
+        if (data.text) {
+          setInput((prev) => (prev ? prev + ' ' + data.text : data.text))
+          textareaRef.current?.focus()
+          navigator.clipboard.writeText(data.text).catch(() => {})
+        }
+      } catch {
+        alert('Transcription failed. Check your Groq API key in Settings.')
+      } finally {
+        setIsTranscribing(false)
+      }
+    }
+
+    mediaRecorder.start()
+    setIsRecording(true)
+  }
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files) return
@@ -122,7 +168,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop 
       onDrop={handleDrop}
     >
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-3 py-3">
+      <div className="flex-1 overflow-y-auto" style={{ padding: 'var(--padding)' }}>
         {messages.length === 0 && !isStreaming && (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">
             Start typing to begin a conversation
@@ -148,11 +194,12 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop 
       <ImagePreview images={images} onRemove={(i) => setImages((prev) => prev.filter((_, idx) => idx !== i))} />
 
       {/* Input */}
-      <div className="border-t border-surface-200 dark:border-surface-700 p-2">
-        <div className="flex items-end gap-2">
+      <div className="border-t border-surface-200 dark:border-surface-700" style={{ padding: 'var(--padding-sm)' }}>
+        <div className="flex items-end" style={{ gap: 'var(--gap)' }}>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex-shrink-0 p-2 rounded-lg text-gray-500 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+            className="flex-shrink-0 rounded-lg text-gray-500 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+            style={{ padding: 'var(--padding-sm)' }}
             title="Attach image"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -177,13 +224,41 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop 
             onPaste={handlePaste}
             placeholder="Type a message... (Shift+Enter for new line)"
             rows={1}
-            className="flex-1 resize-none bg-surface-100 dark:bg-surface-800 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:text-white max-h-32 overflow-y-auto"
-            style={{ minHeight: '36px' }}
+            className="flex-1 resize-none bg-surface-100 dark:bg-surface-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:text-white max-h-32 overflow-y-auto"
+            style={{ minHeight: '36px', padding: 'calc(var(--padding) * 0.7) var(--padding)' }}
           />
+          <button
+            onClick={handleMicClick}
+            disabled={isTranscribing}
+            className={`flex-shrink-0 rounded-xl transition-colors ${
+              isRecording
+                ? 'bg-red-500 text-white animate-pulse'
+                : isTranscribing
+                  ? 'text-gray-400 cursor-wait'
+                  : 'text-gray-500 hover:bg-surface-200 dark:hover:bg-surface-700'
+            }`}
+            style={{ padding: 'var(--padding-sm)' }}
+            title={isRecording ? 'Stop recording' : isTranscribing ? 'Transcribing...' : 'Voice input'}
+          >
+            {isTranscribing ? (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
+                <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
+                <circle cx="12" cy="12" r="10" strokeOpacity="0.2" />
+              </svg>
+            ) : (
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="9" y="2" width="6" height="11" rx="3" />
+                <path d="M5 10a7 7 0 0 0 14 0" />
+                <line x1="12" y1="19" x2="12" y2="22" />
+                <line x1="9" y1="22" x2="15" y2="22" />
+              </svg>
+            )}
+          </button>
           {isStreaming ? (
             <button
               onClick={onStop}
-              className="flex-shrink-0 p-2 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
+              className="flex-shrink-0 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
+              style={{ padding: 'var(--padding-sm)' }}
               title="Stop"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -194,7 +269,8 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop 
             <button
               onClick={handleSubmit}
               disabled={!input.trim() && images.length === 0}
-              className="flex-shrink-0 p-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex-shrink-0 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              style={{ padding: 'var(--padding-sm)' }}
               title="Send"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

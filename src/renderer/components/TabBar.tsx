@@ -38,8 +38,13 @@ export function TabBar({ presets, activePresetId, onSelect, onSettings, onHide, 
 
   return (
     <div
-      className="flex items-center gap-1 px-2 py-1.5 select-none"
-      style={{ backgroundColor: headerColor, color: textColor, WebkitAppRegion: 'drag' } as React.CSSProperties}
+      className="flex items-center select-none"
+      style={{
+        gap: 'var(--padding-xs)',
+        padding: `var(--padding-sm) var(--padding)`,
+        backgroundColor: headerColor,
+        color: textColor,
+      } as React.CSSProperties}
     >
       {presets.map((preset) => (
         <button
@@ -47,11 +52,12 @@ export function TabBar({ presets, activePresetId, onSelect, onSettings, onHide, 
           onClick={() => onSelect(preset.id)}
           onContextMenu={(e) => handleContextMenu(e, preset.id)}
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+          className={`flex items-center rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
             activePresetId === preset.id
               ? 'bg-blue-600 text-white'
               : 'text-gray-600 dark:text-gray-400 hover:bg-surface-200 dark:hover:bg-surface-700'
           }`}
+          style={{ padding: `var(--padding-sm) var(--padding)`, gap: 'var(--padding-xs)' }}
         >
           {preset.icon && <span>{preset.icon}</span>}
           {preset.name}
@@ -60,8 +66,8 @@ export function TabBar({ presets, activePresetId, onSelect, onSettings, onHide, 
 
       <button
         onClick={onAdd}
-        style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-        className="p-1 rounded-lg text-gray-400 hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-gray-600 transition-colors flex-shrink-0"
+        style={{ WebkitAppRegion: 'no-drag', padding: 'var(--padding-xs)' } as React.CSSProperties}
+        className="rounded-lg text-gray-400 hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-gray-600 transition-colors flex-shrink-0"
         title="Add preset"
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -69,11 +75,13 @@ export function TabBar({ presets, activePresetId, onSelect, onSettings, onHide, 
         </svg>
       </button>
 
-      <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+      <div style={{ flex: 1, alignSelf: 'stretch', WebkitAppRegion: 'drag' } as React.CSSProperties} />
+
+      <div className="flex-shrink-0" style={{ gap: 'var(--padding-xs)', display: 'flex', alignItems: 'center', marginRight: 'var(--padding)' }}>
         <button
           onClick={onSettings}
-          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-          className="p-1.5 rounded-lg text-gray-500 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+          style={{ WebkitAppRegion: 'no-drag', padding: 'var(--padding-xs)' } as React.CSSProperties}
+          className="rounded-lg text-gray-500 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
           title="Settings"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -83,7 +91,7 @@ export function TabBar({ presets, activePresetId, onSelect, onSettings, onHide, 
         </button>
         <button
           onClick={onHide}
-          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+          style={{ WebkitAppRegion: 'no-drag', padding: 'var(--padding-xs)' } as React.CSSProperties}
           className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 transition-colors"
           title="Hide"
         />
@@ -92,19 +100,21 @@ export function TabBar({ presets, activePresetId, onSelect, onSettings, onHide, 
       {contextMenu && (
         <div
           ref={menuRef}
-          className="fixed z-50 bg-white dark:bg-surface-800 rounded-lg shadow-lg border border-surface-200 dark:border-surface-700 py-1 min-w-32"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          className="fixed z-50 bg-white dark:bg-surface-800 rounded-lg shadow-lg border border-surface-200 dark:border-surface-700 min-w-32"
+          style={{ left: contextMenu.x, top: contextMenu.y, padding: `var(--padding-xs) 0` }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
             onClick={() => { onEditPreset(contextMenu.presetId); setContextMenu(null) }}
-            className="w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-300 hover:bg-surface-100 dark:hover:bg-surface-700"
+            className="w-full text-xs text-left text-gray-700 dark:text-gray-300 hover:bg-surface-100 dark:hover:bg-surface-700"
+            style={{ padding: 'var(--padding-sm) var(--padding)' }}
           >
             ✏️ Edit
           </button>
           <button
             onClick={() => { onClearConversation(contextMenu.presetId); setContextMenu(null) }}
-            className="w-full px-3 py-1.5 text-xs text-left text-gray-700 dark:text-gray-300 hover:bg-surface-100 dark:hover:bg-surface-700"
+            className="w-full text-xs text-left text-gray-700 dark:text-gray-300 hover:bg-surface-100 dark:hover:bg-surface-700"
+            style={{ padding: 'var(--padding-sm) var(--padding)' }}
           >
             🗑️ Clear chat
           </button>

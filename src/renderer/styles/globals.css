@@ -20,6 +20,11 @@ body,
   --accent: #2563eb;
   --bg: #1e293b;
   --font-size: 15px;
+  --padding-xs: 4px;
+  --padding-sm: 6px;
+  --padding: 8px;
+  --padding-lg: 12px;
+  --gap: 8px;
 }
 
 html {

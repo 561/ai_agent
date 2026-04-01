@@ -5,9 +5,11 @@ import type { ChatMessage } from '../../../shared/types'
 export class GeminiProvider implements LLMProviderInterface {
   name = 'Gemini'
   private apiKey: string
+  private model: string
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, model: string = 'gemini-2.5-flash-lite') {
     this.apiKey = apiKey
+    this.model = model
   }
 
   isConfigured(): boolean {
@@ -21,7 +23,7 @@ export class GeminiProvider implements LLMProviderInterface {
   ): Promise<string> {
     const genAI = new GoogleGenerativeAI(this.apiKey)
     const model = genAI.getGenerativeModel({
-      model: 'gemini-2.5-flash',
+      model: this.model,
       systemInstruction: systemInstruction || undefined,
     })
 

@@ -5,15 +5,19 @@ import {
   screen,
   ipcMain,
   clipboard,
+  session,
 } from 'electron'
+
 import path from 'path'
+import { execSync } from 'child_process'
+import fs from 'fs'
 import { setupTray } from './tray'
 import { setupIpcHandlers } from './ipc-handlers'
-import { getSelection } from './clipboard'
 
 let mainWindow: BrowserWindow | null = null
 let currentHotkey = 'CommandOrControl+Shift+Space'
-let currentSelectionHotkey = 'CommandOrControl+Shift+V'
+let windowMode: 'cursor' | 'pinned' = 'cursor'
+let pinnedPositionSet = false
 
 let DIST = ''
 let DIST_ELECTRON = ''
@@ -57,29 +61,55 @@ function toggleWindow() {
   if (mainWindow.isVisible()) {
     mainWindow.hide()
   } else {
-    showWindowAtCursor()
+    showWindow()
   }
+}
+
+function showWindow() {
+  if (!mainWindow) return
+
+  if (windowMode === 'cursor' || !pinnedPositionSet) {
+    showWindowAtCursor()
+    if (windowMode === 'pinned') pinnedPositionSet = true
+  } else {
+    mainWindow.show()
+    mainWindow.focus()
+  }
+}
+
+function getRealCursorPoint(): { x: number; y: number } {
+  if (process.platform === 'linux') {
+    try {
+      const bundled = path.join(process.resourcesPath, 'bin', 'xdotool')
+      const xdotool = fs.existsSync(bundled) ? bundled : 'xdotool'
+      const out = execSync(`${xdotool} getmouselocation 2>/dev/null`, { timeout: 300 }).toString()
+      const xm = out.match(/x:(\d+)/)
+      const ym = out.match(/y:(\d+)/)
+      if (xm && ym) {
+        return { x: parseInt(xm[1]), y: parseInt(ym[1]) }
+      }
+    } catch {}
+  }
+  return screen.getCursorScreenPoint()
 }
 
 function showWindowAtCursor() {
   if (!mainWindow) return
 
-  const cursorPoint = screen.getCursorScreenPoint()
+  const cursorPoint = getRealCursorPoint()
   const display = screen.getDisplayNearestPoint(cursorPoint)
-  const bounds = display.workArea
+  const { workArea } = display
   const [winWidth, winHeight] = mainWindow.getSize()
 
-  // Center window on cursor
   let x = cursorPoint.x - Math.round(winWidth / 2)
   let y = cursorPoint.y - Math.round(winHeight / 2)
 
-  // Keep window within screen bounds
-  x = Math.max(bounds.x, Math.min(x, bounds.x + bounds.width - winWidth))
-  y = Math.max(bounds.y, Math.min(y, bounds.y + bounds.height - winHeight))
+  x = Math.max(workArea.x, Math.min(x, workArea.x + workArea.width - winWidth))
+  y = Math.max(workArea.y, Math.min(y, workArea.y + workArea.height - winHeight))
 
-  mainWindow.setPosition(x, y)
   mainWindow.show()
   mainWindow.focus()
+  mainWindow.setPosition(x, y)
 }
 
 function registerHotkeys() {
@@ -93,35 +123,25 @@ function registerHotkeys() {
     console.error('Failed to register toggle hotkey:', currentHotkey, e)
   }
 
-  try {
-    globalShortcut.register(currentSelectionHotkey, async () => {
-      const selectedText = await getSelection()
-      if (selectedText && mainWindow) {
-        if (!mainWindow.isVisible()) {
-          showWindowAtCursor()
-        }
-        mainWindow.webContents.send('selection-text', selectedText)
-      }
-    })
-  } catch (e) {
-    console.error('Failed to register selection hotkey:', currentSelectionHotkey, e)
-  }
 }
 
 function isValidAccelerator(accel: string): boolean {
   return /^[\x20-\x7E]+$/.test(accel) && accel.includes('+')
 }
 
-function updateHotkey(type: 'toggle' | 'selection', accelerator: string) {
+function updateWindowMode(mode: 'cursor' | 'pinned') {
+  windowMode = mode
+  if (mode === 'cursor') {
+    pinnedPositionSet = false
+  }
+}
+
+function updateHotkey(accelerator: string) {
   if (!isValidAccelerator(accelerator)) {
     console.warn('Invalid accelerator (non-ASCII), ignoring:', accelerator)
     return
   }
-  if (type === 'toggle') {
-    currentHotkey = accelerator
-  } else {
-    currentSelectionHotkey = accelerator
-  }
+  currentHotkey = accelerator
   registerHotkeys()
 }
 
@@ -130,10 +150,23 @@ app.whenReady().then(() => {
   DIST = path.join(appPath, 'dist')
   DIST_ELECTRON = path.join(appPath, 'dist-electron')
 
+  // Allow microphone access for Web Speech API
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    if (permission === 'media' || permission === 'microphone') {
+      callback(true)
+    } else {
+      callback(false)
+    }
+  })
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
+    return permission === 'media' || permission === 'microphone'
+  })
+
   createWindow()
   registerHotkeys()
   setupTray(mainWindow!, toggleWindow)
-  setupIpcHandlers(mainWindow!, updateHotkey)
+  setupIpcHandlers(mainWindow!, updateHotkey, updateWindowMode)
+
 })
 
 app.on('will-quit', () => {

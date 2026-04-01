@@ -10,7 +10,7 @@ export function ImagePreview({ images, onRemove }: Props) {
   if (images.length === 0) return null
 
   return (
-    <div className="flex gap-2 px-3 py-2 overflow-x-auto">
+    <div className="flex overflow-x-auto" style={{ gap: 'var(--gap)', padding: `var(--padding-sm) var(--padding)` }}>
       {images.map((img, i) => (
         <div key={i} className="relative flex-shrink-0">
           <img

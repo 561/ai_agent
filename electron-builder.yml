@@ -8,11 +8,16 @@ files:
 extraResources:
   - resources/icon-*.png
 linux:
+  depends:
+    - xdotool
   target:
     - deb
     - AppImage
   category: Utility
   icon: resources/icon.png
+  extraResources:
+    - from: /usr/bin/xdotool
+      to: bin/xdotool
 mac:
   target:
     - dmg

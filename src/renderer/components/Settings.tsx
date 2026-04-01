@@ -27,14 +27,22 @@ export function Settings({ settings, onUpdate, onClose, onEditPresets }: Props) 
     { value: 'openai', label: 'OpenAI (coming soon)' },
   ]
 
+  const geminiModels = [
+    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (Recommended)' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+    { value: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash Lite Preview' },
+    { value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro Preview' },
+  ]
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-surface-200 dark:border-surface-700">
+      <div className="flex items-center justify-between border-b border-surface-200 dark:border-surface-700" style={{ padding: `var(--padding-sm) var(--padding-lg)` }}>
         <h2 className="text-sm font-semibold dark:text-white">Settings</h2>
         <button
           onClick={onClose}
-          className="p-1 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-gray-500"
+          className="rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-gray-500"
+          style={{ padding: 'var(--padding-xs)' }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M18 6L6 18M6 6l12 12" />
@@ -42,16 +50,17 @@ export function Settings({ settings, onUpdate, onClose, onEditPresets }: Props) 
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-5">
+      <div className="flex-1 overflow-y-auto" style={{ padding: 'var(--padding-lg)', gap: 'var(--padding-lg)', display: 'flex', flexDirection: 'column' }}>
         {/* Provider */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+          <label className="block text-sm font-medium text-gray-500 dark:text-gray-400" style={{ marginBottom: 'var(--padding-sm)' }}>
             AI Provider
           </label>
           <select
             value={settings.activeProvider}
             onChange={(e) => onUpdate({ activeProvider: e.target.value as LLMProvider })}
-            className="w-full bg-surface-100 dark:bg-surface-800 rounded-lg px-3 py-2 text-sm dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            style={{ padding: 'var(--padding-sm) var(--padding)', backgroundColor: 'var(--header)', color: 'var(--text)' }}
           >
             {providers.map((p) => (
               <option key={p.value} value={p.value}>
@@ -61,9 +70,30 @@ export function Settings({ settings, onUpdate, onClose, onEditPresets }: Props) 
           </select>
         </div>
 
+        {/* Gemini Model Selection */}
+        {settings.activeProvider === 'gemini' && (
+          <div>
+            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400" style={{ marginBottom: 'var(--padding-sm)' }}>
+              Gemini Model
+            </label>
+            <select
+              value={settings.geminiModel || 'gemini-2.5-flash-lite'}
+              onChange={(e) => onUpdate({ geminiModel: e.target.value })}
+              className="w-full bg-surface-100 dark:bg-surface-800 rounded-lg text-sm dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+              style={{ padding: 'var(--padding-sm) var(--padding)' }}
+            >
+              {geminiModels.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {/* API Keys */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+          <label className="block text-sm font-medium text-gray-500 dark:text-gray-400" style={{ marginBottom: 'var(--padding-sm)' }}>
             Gemini API Key
           </label>
           <input
@@ -75,7 +105,8 @@ export function Settings({ settings, onUpdate, onClose, onEditPresets }: Props) 
               })
             }
             placeholder="Enter your Gemini API key"
-            className="w-full bg-surface-100 dark:bg-surface-800 rounded-lg px-3 py-2 text-sm dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            style={{ padding: 'var(--padding-sm) var(--padding)', backgroundColor: 'var(--header)', color: 'var(--text)' }}
           />
         </div>
 
@@ -92,7 +123,8 @@ export function Settings({ settings, onUpdate, onClose, onEditPresets }: Props) 
               })
             }
             placeholder="Enter your Claude API key"
-            className="w-full bg-surface-100 dark:bg-surface-800 rounded-lg px-3 py-2 text-sm dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            style={{ padding: 'var(--padding-sm) var(--padding)', backgroundColor: 'var(--header)', color: 'var(--text)' }}
           />
         </div>
 
@@ -109,7 +141,27 @@ export function Settings({ settings, onUpdate, onClose, onEditPresets }: Props) 
               })
             }
             placeholder="Enter your OpenAI API key"
-            className="w-full bg-surface-100 dark:bg-surface-800 rounded-lg px-3 py-2 text-sm dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            style={{ padding: 'var(--padding-sm) var(--padding)', backgroundColor: 'var(--header)', color: 'var(--text)' }}
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+            Groq API Key{' '}
+            <span className="text-green-500 font-normal">(free — used for voice input)</span>
+          </label>
+          <input
+            type="password"
+            value={settings.apiKeys.groq}
+            onChange={(e) =>
+              onUpdate({
+                apiKeys: { ...settings.apiKeys, groq: e.target.value },
+              })
+            }
+            placeholder="Get free key at console.groq.com"
+            className="w-full rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+            style={{ padding: 'var(--padding-sm) var(--padding)', backgroundColor: 'var(--header)', color: 'var(--text)' }}
           />
         </div>
 
@@ -123,47 +175,36 @@ export function Settings({ settings, onUpdate, onClose, onEditPresets }: Props) 
             if (window.require) {
               // @ts-ignore
               const { ipcRenderer } = window.require('electron')
-              ipcRenderer.send('update-hotkey', 'toggle', accelerator)
-            }
-          }}
-        />
-        <HotkeyInput
-          label="Send Selection Hotkey"
-          value={settings.selectionHotkey}
-          onChange={(accelerator) => {
-            onUpdate({ selectionHotkey: accelerator })
-            // @ts-ignore
-            if (window.require) {
-              // @ts-ignore
-              const { ipcRenderer } = window.require('electron')
-              ipcRenderer.send('update-hotkey', 'selection', accelerator)
+              ipcRenderer.send('update-hotkey', accelerator)
             }
           }}
         />
 
         {/* Window Mode */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+          <label className="block text-sm font-medium text-gray-500 dark:text-gray-400" style={{ marginBottom: 'var(--padding-sm)' }}>
             Window Position
           </label>
-          <div className="flex gap-2">
+          <div className="flex" style={{ gap: 'var(--gap)' }}>
             <button
               onClick={() => onUpdate({ windowMode: 'cursor' })}
-              className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+              className={`flex-1 rounded-lg text-sm font-medium transition-colors ${
                 settings.windowMode === 'cursor'
                   ? 'bg-blue-600 text-white'
                   : 'bg-surface-100 dark:bg-surface-800 text-gray-600 dark:text-gray-400'
               }`}
+              style={{ padding: 'var(--padding-sm) var(--padding)' }}
             >
               At Cursor
             </button>
             <button
               onClick={() => onUpdate({ windowMode: 'pinned' })}
-              className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+              className={`flex-1 rounded-lg text-sm font-medium transition-colors ${
                 settings.windowMode === 'pinned'
                   ? 'bg-blue-600 text-white'
                   : 'bg-surface-100 dark:bg-surface-800 text-gray-600 dark:text-gray-400'
               }`}
+              style={{ padding: 'var(--padding-sm) var(--padding)' }}
             >
               Pinned
             </button>
@@ -172,10 +213,10 @@ export function Settings({ settings, onUpdate, onClose, onEditPresets }: Props) 
 
         {/* Accent Color */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+          <label className="block text-sm font-medium text-gray-500 dark:text-gray-400" style={{ marginBottom: 'var(--padding)' }}>
             Accent Color
           </label>
-          <div className="flex gap-2 flex-wrap items-center">
+          <div className="flex flex-wrap items-center" style={{ gap: 'var(--gap)' }}>
             {[
               { color: '#2563eb', label: 'Blue' },
               { color: '#7c3aed', label: 'Purple' },
@@ -219,10 +260,10 @@ export function Settings({ settings, onUpdate, onClose, onEditPresets }: Props) 
 
         {/* Background Color */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+          <label className="block text-sm font-medium text-gray-500 dark:text-gray-400" style={{ marginBottom: 'var(--padding)' }}>
             Background Color
           </label>
-          <div className="flex gap-2 flex-wrap items-center">
+          <div className="flex flex-wrap items-center" style={{ gap: 'var(--gap)' }}>
             {[
               { color: '#1e293b', label: 'Dark Blue' },
               { color: '#18181b', label: 'Dark' },
@@ -266,10 +307,10 @@ export function Settings({ settings, onUpdate, onClose, onEditPresets }: Props) 
 
         {/* Surface Color */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+          <label className="block text-sm font-medium text-gray-500 dark:text-gray-400" style={{ marginBottom: 'var(--padding)' }}>
             Surface Color (panels, inputs, buttons)
           </label>
-          <div className="flex gap-2 flex-wrap items-center">
+          <div className="flex flex-wrap items-center" style={{ gap: 'var(--gap)' }}>
             {['#0f172a','#1e293b','#18181b','#1c1917','#1e1b4b','#064e3b','#ffffff','#f1f5f9'].map((color) => (
               <button
                 key={color}
@@ -293,10 +334,10 @@ export function Settings({ settings, onUpdate, onClose, onEditPresets }: Props) 
 
         {/* Text Color */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
+          <label className="block text-sm font-medium text-gray-500 dark:text-gray-400" style={{ marginBottom: 'var(--padding)' }}>
             Text Color
           </label>
-          <div className="flex gap-2 flex-wrap items-center">
+          <div className="flex flex-wrap items-center" style={{ gap: 'var(--gap)' }}>
             {['#e2e8f0','#f8fafc','#ffffff','#cbd5e1','#94a3b8','#1e293b','#0f172a','#374151'].map((color) => (
               <button
                 key={color}
@@ -320,19 +361,20 @@ export function Settings({ settings, onUpdate, onClose, onEditPresets }: Props) 
 
         {/* Font Size */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+          <label className="block text-sm font-medium text-gray-500 dark:text-gray-400" style={{ marginBottom: 'var(--padding-sm)' }}>
             Font Size
           </label>
-          <div className="flex gap-2">
-            {([['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large']] as const).map(([value, label]) => (
+          <div className="flex" style={{ gap: 'var(--gap)' }}>
+            {([['xs', 'XS'], ['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large'], ['xl', 'XL']] as const).map(([value, label]) => (
               <button
                 key={value}
                 onClick={() => onUpdate({ fontSize: value })}
-                className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                className={`flex-1 rounded-lg text-sm font-medium transition-colors ${
                   settings.fontSize === value
                     ? 'bg-blue-600 text-white'
                     : 'bg-surface-100 dark:bg-surface-800 text-gray-600 dark:text-gray-400'
                 }`}
+                style={{ padding: 'calc(var(--padding-sm) * 1.2) var(--padding)' }}
               >
                 {label}
               </button>

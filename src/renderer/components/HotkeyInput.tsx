@@ -96,26 +96,29 @@ export function HotkeyInput({ value, onChange, label }: Props) {
 
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+      <label className="block text-sm font-medium text-gray-500 dark:text-gray-400" style={{ marginBottom: 'var(--padding-sm)' }}>
         {label}
       </label>
       {manualMode ? (
-        <div className="flex gap-1.5">
+        <div style={{ display: 'flex', gap: 'var(--padding-xs)' }}>
           <input
             autoFocus
             value={manualValue}
             onChange={(e) => setManualValue(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') submitManual() }}
             placeholder="e.g. Ctrl+Alt+Q"
-            className="flex-1 bg-surface-100 dark:bg-surface-800 rounded-lg px-3 py-2 text-sm dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 bg-surface-100 dark:bg-surface-800 rounded-lg text-sm dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
+            style={{ padding: 'var(--padding-sm) var(--padding)' }}
           />
           <button onClick={submitManual}
-            className="px-2.5 py-2 rounded-lg bg-blue-600 text-white text-xs hover:bg-blue-700">OK</button>
+            className="rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700"
+            style={{ padding: 'var(--padding-sm) 0.625rem' }}>OK</button>
           <button onClick={() => setManualMode(false)}
-            className="px-2.5 py-2 rounded-lg bg-surface-200 dark:bg-surface-700 text-gray-500 text-xs hover:bg-surface-300 dark:hover:bg-surface-600">X</button>
+            className="rounded-lg bg-surface-200 dark:bg-surface-700 text-gray-500 text-sm hover:bg-surface-300 dark:hover:bg-surface-600"
+            style={{ padding: 'var(--padding-sm) 0.625rem' }}>X</button>
         </div>
       ) : (
-        <div className="flex gap-1.5">
+        <div style={{ display: 'flex', gap: 'var(--padding-xs)' }}>
           <div
             ref={inputRef}
             tabIndex={0}
@@ -123,11 +126,12 @@ export function HotkeyInput({ value, onChange, label }: Props) {
             onKeyUp={handleKeyUp}
             onBlur={() => { setRecording(false); setDisplayKeys([]) }}
             onClick={startRecording}
-            className={`flex-1 rounded-lg px-3 py-2 text-sm outline-none cursor-pointer select-none transition-colors ${
+            className={`flex-1 rounded-lg text-sm outline-none cursor-pointer select-none transition-colors ${
               recording
                 ? 'bg-blue-50 dark:bg-blue-900/30 ring-2 ring-blue-500 text-blue-600 dark:text-blue-400'
                 : 'bg-surface-100 dark:bg-surface-800 text-gray-700 dark:text-gray-300 hover:bg-surface-200 dark:hover:bg-surface-700'
             }`}
+            style={{ padding: 'var(--padding-sm) var(--padding)' }}
           >
             {recording
               ? displayKeys.length > 0
@@ -137,7 +141,8 @@ export function HotkeyInput({ value, onChange, label }: Props) {
           </div>
           <button
             onClick={() => { setRecording(false); setManualMode(true); setManualValue(acceleratorToDisplay(value)) }}
-            className="px-2.5 py-2 rounded-lg bg-surface-200 dark:bg-surface-700 text-gray-500 text-xs hover:bg-surface-300 dark:hover:bg-surface-600"
+            className="rounded-lg bg-surface-200 dark:bg-surface-700 text-gray-500 text-sm hover:bg-surface-300 dark:hover:bg-surface-600"
+            style={{ padding: 'var(--padding-sm) 0.625rem' }}
             title="Type manually">edit</button>
         </div>
       )}

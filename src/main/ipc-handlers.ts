@@ -2,7 +2,8 @@ import { ipcMain, BrowserWindow, screen } from 'electron'
 
 export function setupIpcHandlers(
   mainWindow: BrowserWindow,
-  updateHotkey: (type: 'toggle' | 'selection', accelerator: string) => void,
+  updateHotkey: (accelerator: string) => void,
+  updateWindowMode: (mode: 'cursor' | 'pinned') => void,
 ) {
   ipcMain.handle('get-cursor-position', () => {
     return screen.getCursorScreenPoint()
@@ -27,7 +28,11 @@ export function setupIpcHandlers(
     mainWindow.setAlwaysOnTop(flag)
   })
 
-  ipcMain.on('update-hotkey', (_event, type: 'toggle' | 'selection', accelerator: string) => {
-    updateHotkey(type, accelerator)
+  ipcMain.on('update-hotkey', (_event, accelerator: string) => {
+    updateHotkey(accelerator)
+  })
+
+  ipcMain.on('update-window-mode', (_event, mode: 'cursor' | 'pinned') => {
+    updateWindowMode(mode)
   })
 }

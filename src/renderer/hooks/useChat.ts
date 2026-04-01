@@ -1,31 +1,40 @@
 import { useState, useCallback, useRef } from 'react'
 import { v4 as uuidv4 } from 'uuid'
-import type { ChatMessage, ImageAttachment, Conversation, AppSettings } from '../../shared/types'
+import type { ChatMessage, ImageAttachment, Conversation, AppSettings, LLMProvider, Preset } from '../../shared/types'
 import { GeminiProvider } from '../lib/providers/gemini'
 import { ClaudeProvider } from '../lib/providers/claude'
 import { OpenAIProvider } from '../lib/providers/openai'
 import type { LLMProviderInterface } from '../lib/providers/base'
 import { loadConversations, saveConversations } from '../lib/storage'
 
-function getProvider(settings: AppSettings): LLMProviderInterface {
-  switch (settings.activeProvider) {
+function getProvider(settings: AppSettings, provider?: LLMProvider, model?: string): LLMProviderInterface {
+  const activeProvider = provider || settings.activeProvider
+
+  switch (activeProvider) {
     case 'gemini':
-      return new GeminiProvider(settings.apiKeys.gemini)
+      return new GeminiProvider(settings.apiKeys.gemini, model || settings.geminiModel)
     case 'claude':
       return new ClaudeProvider(settings.apiKeys.claude)
     case 'openai':
       return new OpenAIProvider(settings.apiKeys.openai)
     default:
-      return new GeminiProvider(settings.apiKeys.gemini)
+      return new GeminiProvider(settings.apiKeys.gemini, model || settings.geminiModel)
   }
 }
 
-export function useChat(settings: AppSettings) {
+export function useChat(settings: AppSettings, presets?: any[]) {
   const [conversations, setConversations] = useState<Conversation[]>(loadConversations)
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingText, setStreamingText] = useState('')
   const abortRef = useRef(false)
+
+  const getPresetForConversation = (convId: string): Preset | undefined => {
+    if (!presets) return undefined
+    const conv = conversations.find((c) => c.id === convId)
+    if (!conv) return undefined
+    return presets.find((p) => p.id === conv.presetId)
+  }
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId) || null
 
@@ -86,7 +95,8 @@ export function useChat(settings: AppSettings) {
       abortRef.current = false
 
       try {
-        const provider = getProvider(settings)
+        const preset = getPresetForConversation(convId)
+        const provider = getProvider(settings, preset?.llmProvider, preset?.llmModel)
         const conv = conversations.find((c) => c.id === convId)
         const allMessages = [...(conv?.messages || []), userMessage]
 
@@ -140,7 +150,7 @@ export function useChat(settings: AppSettings) {
         setStreamingText('')
       }
     },
-    [activeConversationId, conversations, settings],
+    [activeConversationId, conversations, settings, presets],
   )
 
   const stopStreaming = useCallback(() => {

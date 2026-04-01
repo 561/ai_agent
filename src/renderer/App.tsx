@@ -27,7 +27,7 @@ export function App() {
     streamingText,
     stopStreaming,
     clearConversation,
-  } = useChat(settings)
+  } = useChat(settings, presets)
 
   // Apply accent color and font size as CSS variables
   useEffect(() => {
@@ -36,8 +36,19 @@ export function App() {
     root.style.setProperty('--bg', settings.bgColor || '#1e293b')
     root.style.setProperty('--header', settings.headerColor || '#0f172a')
     root.style.setProperty('--text', settings.textColor || '#e2e8f0')
-    const sizeMap = { sm: '13px', md: '15px', lg: '17px' }
-    root.style.setProperty('--font-size', sizeMap[settings.fontSize || 'md'])
+    const sizeMap = { xs: '12px', sm: '14px', md: '16px', lg: '18px', xl: '20px' }
+    const fontSize = sizeMap[settings.fontSize || 'md']
+    root.style.setProperty('--font-size', fontSize)
+
+    // Scale padding and margins based on font size
+    const baseFontSize = 16
+    const currentSize = parseInt(fontSize)
+    const scale = currentSize / baseFontSize
+    root.style.setProperty('--padding-xs', `${4 * scale}px`)
+    root.style.setProperty('--padding-sm', `${6 * scale}px`)
+    root.style.setProperty('--padding', `${8 * scale}px`)
+    root.style.setProperty('--padding-lg', `${12 * scale}px`)
+    root.style.setProperty('--gap', `${8 * scale}px`)
   }, [settings.accentColor, settings.bgColor, settings.headerColor, settings.textColor, settings.fontSize])
 
   // Listen for open-settings from main process & sync hotkeys on mount
@@ -48,13 +59,13 @@ export function App() {
       const { ipcRenderer } = window.require('electron')
       ipcRenderer.on('open-settings', () => setView('settings'))
 
-      // Sync saved hotkeys to main process on startup
+      // Sync saved hotkey to main process on startup
       if (settings.hotkey) {
-        ipcRenderer.send('update-hotkey', 'toggle', settings.hotkey)
+        ipcRenderer.send('update-hotkey', settings.hotkey)
       }
-      if (settings.selectionHotkey) {
-        ipcRenderer.send('update-hotkey', 'selection', settings.selectionHotkey)
-      }
+
+      // Sync window mode to main process on startup
+      ipcRenderer.send('update-window-mode', settings.windowMode || 'cursor')
 
       // ESC to hide window
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -93,6 +104,16 @@ export function App() {
 
     sendMessage(content, images, systemInstruction, convId)
   }
+
+  // Sync windowMode changes to main process
+  useEffect(() => {
+    // @ts-ignore
+    if (window.require) {
+      // @ts-ignore
+      const { ipcRenderer } = window.require('electron')
+      ipcRenderer.send('update-window-mode', settings.windowMode || 'cursor')
+    }
+  }, [settings.windowMode])
 
   // Auto-select first preset on mount
   useEffect(() => {
@@ -158,8 +179,8 @@ export function App() {
           />
         ) : (
           <div
-            className="flex items-center justify-between px-3 py-1.5 select-none"
-            style={{ backgroundColor: settings.headerColor || '#0f172a', color: settings.textColor || '#e2e8f0', WebkitAppRegion: 'drag' } as React.CSSProperties}
+            className="flex items-center justify-between select-none"
+            style={{ backgroundColor: settings.headerColor || '#0f172a', color: settings.textColor || '#e2e8f0', WebkitAppRegion: 'drag', padding: `var(--padding-sm) var(--padding)` } as React.CSSProperties}
           >
             <span className="text-xs font-semibold opacity-60">
               {view === 'settings' ? 'Settings' : 'Presets'}
@@ -195,6 +216,7 @@ export function App() {
             streamingText={streamingText}
             onSend={handleSend}
             onStop={stopStreaming}
+            groqApiKey={settings.apiKeys.groq}
           />
         )}
       </div>

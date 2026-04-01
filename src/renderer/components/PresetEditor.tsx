@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
-import type { Preset } from '../../shared/types'
+import type { Preset, LLMProvider } from '../../shared/types'
 
 interface Props {
   presets: Preset[]
@@ -13,6 +13,19 @@ interface Props {
 
 export function PresetEditor({ presets, onUpdate, onAdd, onRemove, onClose, initialEditingId }: Props) {
   const [editingId, setEditingId] = useState<string | null>(initialEditingId || null)
+
+  const providers: { value: LLMProvider; label: string }[] = [
+    { value: 'gemini', label: 'Gemini' },
+    { value: 'claude', label: 'Claude' },
+    { value: 'openai', label: 'OpenAI' },
+  ]
+
+  const geminiModels = [
+    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (Recommended)' },
+    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+    { value: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash Lite Preview' },
+    { value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro Preview' },
+  ]
 
   const handleAdd = () => {
     const newPreset: Preset = {
@@ -27,11 +40,12 @@ export function PresetEditor({ presets, onUpdate, onAdd, onRemove, onClose, init
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-surface-200 dark:border-surface-700">
+      <div className="flex items-center justify-between border-b border-surface-200 dark:border-surface-700" style={{ padding: `var(--padding-sm) var(--padding-lg)` }}>
         <h2 className="text-sm font-semibold dark:text-white">Edit Presets</h2>
         <button
           onClick={onClose}
-          className="p-1 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-gray-500"
+          className="rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 text-gray-500"
+          style={{ padding: 'var(--padding-xs)' }}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M18 6L6 18M6 6l12 12" />
@@ -39,25 +53,28 @@ export function PresetEditor({ presets, onUpdate, onAdd, onRemove, onClose, init
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto" style={{ padding: 'var(--padding-lg)', gap: 'var(--padding)', display: 'flex', flexDirection: 'column' }}>
         {presets.map((preset) => (
           <div
             key={preset.id}
-            className="bg-surface-100 dark:bg-surface-800 rounded-xl p-3"
+            className="rounded-xl"
+            style={{ padding: 'var(--padding)', backgroundColor: 'var(--header)', border: '1px solid rgba(255,255,255,0.07)', boxShadow: '0 2px 8px rgba(0,0,0,0.3)' }}
           >
             {editingId === preset.id ? (
-              <div className="space-y-2">
-                <div className="flex gap-2">
+              <div style={{ gap: 'var(--padding-sm)', display: 'flex', flexDirection: 'column' }}>
+                <div className="flex" style={{ gap: 'var(--gap)' }}>
                   <input
                     value={preset.icon || ''}
                     onChange={(e) => onUpdate(preset.id, { icon: e.target.value })}
-                    className="w-12 bg-white dark:bg-surface-700 rounded-lg px-2 py-1.5 text-sm text-center outline-none"
+                    className="w-12 rounded-lg text-sm text-center outline-none"
+                    style={{ padding: 'var(--padding-sm) var(--padding-xs)', backgroundColor: 'var(--bg)', color: 'var(--text)', border: '1px solid rgba(255,255,255,0.1)' }}
                     placeholder="Icon"
                   />
                   <input
                     value={preset.name}
                     onChange={(e) => onUpdate(preset.id, { name: e.target.value })}
-                    className="flex-1 bg-white dark:bg-surface-700 rounded-lg px-3 py-1.5 text-sm dark:text-white outline-none"
+                    className="flex-1 rounded-lg text-sm outline-none"
+                    style={{ padding: 'var(--padding-sm) var(--padding)', backgroundColor: 'var(--bg)', color: 'var(--text)', border: '1px solid rgba(255,255,255,0.1)' }}
                     placeholder="Name"
                   />
                 </div>
@@ -65,37 +82,84 @@ export function PresetEditor({ presets, onUpdate, onAdd, onRemove, onClose, init
                   value={preset.systemInstruction}
                   onChange={(e) => onUpdate(preset.id, { systemInstruction: e.target.value })}
                   rows={4}
-                  className="w-full bg-white dark:bg-surface-700 rounded-lg px-3 py-2 text-xs dark:text-white outline-none resize-none"
+                  className="w-full rounded-lg text-sm outline-none resize-none"
+                  style={{ padding: 'var(--padding)', backgroundColor: 'var(--bg)', color: 'var(--text)', border: '1px solid rgba(255,255,255,0.1)' }}
                   placeholder="System instruction..."
                 />
-                <div className="flex justify-between">
+
+                {/* AI Provider & Model Overrides */}
+                <div style={{ gap: 'var(--padding-sm)', display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      AI Provider (default)
+                    </label>
+                    <select
+                      value={preset.llmProvider || ''}
+                      onChange={(e) => onUpdate(preset.id, { llmProvider: (e.target.value as LLMProvider) || undefined })}
+                      className="w-full rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{ padding: 'var(--padding-sm)', backgroundColor: 'var(--bg)', color: 'var(--text)', border: '1px solid rgba(255,255,255,0.1)' }}
+                    >
+                      <option value="">Use global default</option>
+                      {providers.map((p) => (
+                        <option key={p.value} value={p.value}>
+                          {p.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                      AI Model (default)
+                    </label>
+                    <select
+                      value={preset.llmModel || ''}
+                      onChange={(e) => onUpdate(preset.id, { llmModel: e.target.value || undefined })}
+                      className="w-full rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                      style={{ padding: 'var(--padding-sm)', backgroundColor: 'var(--bg)', color: 'var(--text)', border: '1px solid rgba(255,255,255,0.1)' }}
+                    >
+                      <option value="">Use global default</option>
+                      {geminiModels.map((m) => (
+                        <option key={m.value} value={m.value}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex justify-between" style={{ gap: 'var(--gap)' }}>
                   <button
                     onClick={() => onRemove(preset.id)}
-                    className="px-3 py-1 rounded-lg text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    className="rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+                    style={{ padding: 'var(--padding-xs) var(--padding)' }}
                   >
                     Delete
                   </button>
                   <button
                     onClick={() => setEditingId(null)}
-                    className="px-3 py-1 rounded-lg text-xs bg-blue-600 text-white hover:bg-blue-700"
+                    className="rounded-lg text-sm bg-blue-600 text-white hover:bg-blue-700"
+                    style={{ padding: 'var(--padding-xs) var(--padding)' }}
                   >
                     Done
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center" style={{ gap: 'var(--gap)' }}>
                 <div
-                  className="flex items-center gap-2 flex-1 cursor-pointer"
+                  className="flex items-center flex-1 cursor-pointer"
+                  style={{ gap: 'var(--gap)' }}
                   onClick={() => setEditingId(preset.id)}
                 >
                   <span>{preset.icon}</span>
                   <span className="text-sm dark:text-white">{preset.name}</span>
-                  <span className="ml-auto text-xs px-2 py-0.5 rounded" style={{ backgroundColor: 'var(--header)', opacity: 0.7 }}>edit</span>
+                  <span className="ml-auto text-sm rounded" style={{ backgroundColor: 'var(--header)', opacity: 0.7, padding: `var(--padding-xs) var(--padding-sm)` }}>edit</span>
                 </div>
                 <button
                   onClick={() => onRemove(preset.id)}
-                  className="p-1 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex-shrink-0"
+                  className="rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex-shrink-0"
+                  style={{ padding: 'var(--padding-xs)' }}
                   title="Delete"
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -109,7 +173,8 @@ export function PresetEditor({ presets, onUpdate, onAdd, onRemove, onClose, init
 
         <button
           onClick={handleAdd}
-          className="w-full py-2 rounded-xl border-2 border-dashed border-surface-200 dark:border-surface-700 text-sm text-gray-400 hover:border-blue-400 hover:text-blue-400 transition-colors"
+          className="w-full rounded-xl border-2 border-dashed border-surface-200 dark:border-surface-700 text-sm text-gray-400 hover:border-blue-400 hover:text-blue-400 transition-colors"
+          style={{ padding: `var(--padding-sm) 0` }}
         >
           + Add Preset
         </button>
