@@ -42,7 +42,8 @@ export function MessageBubble({ message }: Props) {
               rehypePlugins={[rehypeHighlight]}
               components={{
                 code: ({ inline, className, children, ...props }: any) => {
-                  const isInline = inline || !className?.includes('language-')
+                  const hasNewline = String(children).includes('\n')
+                  const isInline = inline || (!className?.includes('language-') && !hasNewline)
                   if (isInline) {
                     return <code className="bg-surface-300 dark:bg-surface-600 rounded text-xs" style={{ padding: `var(--padding-xs) ${6 * 0.375}px`, display: 'inline', wordBreak: 'break-all' }} {...props}>{children}</code>
                   }
