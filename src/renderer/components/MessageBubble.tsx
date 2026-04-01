@@ -10,12 +10,14 @@ interface Props {
 
 export function MessageBubble({ message }: Props) {
   const isUser = message.role === 'user'
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null)
+  const [copiedText, setCopiedText] = useState<string | null>(null)
 
-  const copyToClipboard = (text: string, index: number) => {
-    navigator.clipboard.writeText(text)
-    setCopiedIndex(index)
-    setTimeout(() => setCopiedIndex(null), 2000)
+  const copyToClipboard = (text: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { clipboard } = require('electron')
+    clipboard.writeText(text)
+    setCopiedText(text)
+    setTimeout(() => setCopiedText(null), 2000)
   }
 
   return (
@@ -50,17 +52,16 @@ export function MessageBubble({ message }: Props) {
                   const codeText = String(children).replace(/\n$/, '')
                   const match = /language-(\w+)/.exec(className || '')
                   const lang = match ? match[1] : 'text'
-                  const codeIndex = parseInt(className?.match(/\[(\d+)\]/)?.[1] || '0')
 
                   return (
                     <div className="relative group bg-surface-300 dark:bg-surface-600 rounded-lg" style={{ margin: `var(--padding-sm) 0` }}>
                       <div className="absolute opacity-0 group-hover:opacity-100 transition-opacity" style={{ top: '4px', right: 'var(--padding-sm)', zIndex: 1 }}>
                         <button
-                          onClick={() => copyToClipboard(codeText, codeIndex)}
+                          onClick={() => copyToClipboard(codeText)}
                           className="text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                           style={{ padding: 'var(--padding-xs) var(--padding-sm)' }}
                         >
-                          {copiedIndex === codeIndex ? '✓ Copied' : 'Copy'}
+                          {copiedText === codeText ? '✓ Copied' : 'Copy'}
                         </button>
                       </div>
                       <pre className="overflow-x-auto text-xs" style={{ padding: 'var(--padding)' }}>
