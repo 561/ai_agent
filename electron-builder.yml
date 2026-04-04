@@ -28,3 +28,4 @@ win:
   target:
     - nsis
   icon: resources/icon.png
+npmRebuild: false

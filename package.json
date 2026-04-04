@@ -7,9 +7,10 @@
     "dev": "vite",
     "build": "tsc && vite build && electron-builder && node scripts/post-build.js",
     "build:linux": "tsc && vite build && electron-builder --linux && node scripts/post-build.js",
-    "build:win": "tsc && vite build && electron-builder --win && node scripts/post-build.js",
+    "build:win": "tsc && vite build && cross-env CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --win && node scripts/post-build.js",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "npx playwright install chromium"
   },
   "author": {
     "name": "Anton",
@@ -35,6 +36,7 @@
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "cross-env": "^10.1.0",
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8",
     "postcss": "^8.4.49",
