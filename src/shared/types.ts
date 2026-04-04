@@ -22,6 +22,7 @@ export interface Preset {
   llmProvider?: LLMProvider
   llmModel?: string
   type?: PresetType
+  telegramNotify?: boolean
 }
 
 export interface AgentState {
@@ -60,6 +61,11 @@ export interface AppSettings {
   headerColor: string
   textColor: string
   fontSize: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+  language: 'en' | 'ru'
+  telegram: {
+    botToken: string
+    chatId: string
+  }
 }
 
 export interface IpcChannels {

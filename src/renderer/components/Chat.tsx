@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { MessageBubble } from './MessageBubble'
 import { ImagePreview } from './ImagePreview'
 import type { ChatMessage, ImageAttachment, Conversation } from '../../shared/types'
+import { useI18n } from '../lib/i18n'
 
 interface Props {
   conversation: Conversation | null
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function Chat({ conversation, isStreaming, streamingText, onSend, onStop, groqApiKey, focusSignal }: Props) {
+  const { t } = useI18n()
   const [input, setInput] = useState('')
   const [images, setImages] = useState<ImageAttachment[]>([])
   const [isRecording, setIsRecording] = useState(false)
@@ -94,7 +96,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
     }
 
     if (!groqApiKey) {
-      alert('Voice input requires a Groq API key (free).\nGet one at console.groq.com and add it in Settings.')
+      alert(t('voiceInputRequiresKey'))
       return
     }
 
@@ -102,7 +104,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     } catch {
-      alert('Microphone access denied.')
+      alert(t('micDenied'))
       return
     }
 
@@ -135,10 +137,10 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
           textareaRef.current?.focus()
           navigator.clipboard.writeText(data.text).catch(() => {})
         } else {
-          alert('Transcription returned empty result.\n' + JSON.stringify(data))
+          alert(t('transcriptionEmpty') + '\n' + JSON.stringify(data))
         }
       } catch (err) {
-        alert('Transcription failed. Check your Groq API key in Settings.\n' + String(err))
+        alert(t('transcriptionFailed') + '\n' + String(err))
       } finally {
         setIsTranscribing(false)
       }
@@ -179,7 +181,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
       <div className="flex-1 overflow-y-auto" style={{ padding: 'calc(var(--padding) * 1.4)' }}>
         {messages.length === 0 && !isStreaming && (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-            Start typing to begin a conversation
+            {t('startTyping')}
           </div>
         )}
         {messages.map((msg) => (
@@ -208,7 +210,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
             onClick={() => fileInputRef.current?.click()}
             className="flex-shrink-0 mb-1 rounded-lg text-gray-500 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
             style={{ padding: '0  0 var(--padding-xs) var(--padding-xs)' }}
-            title="Attach image"
+            title={t('attachImage')}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
@@ -230,7 +232,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            placeholder="Type a message... (Shift+Enter for new line)"
+            placeholder={t('typeMessage')}
             rows={1}
             className="flex-1 resize-none bg-surface-100 dark:bg-surface-800 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:text-white max-h-32 overflow-y-auto"
             style={{ minHeight: '36px', padding: 'calc(var(--padding) * 0.7) var(--padding)' }}
@@ -246,7 +248,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
                   : 'text-gray-500 hover:bg-surface-200 dark:hover:bg-surface-700'
             }`}
             style={{ padding: 'var(--padding-sm)' }}
-            title={isRecording ? 'Stop recording' : isTranscribing ? 'Transcribing...' : 'Voice input'}
+            title={isRecording ? t('stopRecording') : isTranscribing ? t('transcribing') : t('voiceInput')}
           >
             {isTranscribing ? (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
@@ -267,7 +269,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
               onClick={onStop}
               className="flex-shrink-0 mb-0.5 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
               style={{ padding: 'var(--padding-sm)' }}
-              title="Stop"
+              title={t('stop')}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <rect x="6" y="6" width="12" height="12" rx="2" />
@@ -279,7 +281,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
               disabled={!input.trim() && images.length === 0}
               className="flex-shrink-0 mb-0.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               style={{ padding: 'var(--padding-sm)' }}
-              title="Send"
+              title={t('send')}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />

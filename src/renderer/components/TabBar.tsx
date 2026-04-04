@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import type { Preset } from '../../shared/types'
+import { useI18n } from '../lib/i18n'
 
 interface Props {
   presets: Preset[]
@@ -23,6 +24,7 @@ interface ContextMenu {
 }
 
 export function TabBar({ presets, activePresetId, onSelect, onSettings, onHide, onAdd, onEditPreset, onClearConversation, onDeletePreset, onReorder, headerColor, textColor }: Props) {
+  const { t } = useI18n()
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const dragIdRef = useRef<string | null>(null)
@@ -85,7 +87,7 @@ export function TabBar({ presets, activePresetId, onSelect, onSettings, onHide, 
         onClick={onAdd}
         style={{ WebkitAppRegion: 'no-drag', padding: 'var(--padding-xs)' } as React.CSSProperties}
         className="rounded-lg text-gray-400 hover:bg-surface-200 dark:hover:bg-surface-700 hover:text-gray-600 transition-colors flex-shrink-0"
-        title="Add preset"
+        title={t('addPreset')}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M12 5v14M5 12h14" />
@@ -99,7 +101,7 @@ export function TabBar({ presets, activePresetId, onSelect, onSettings, onHide, 
           onClick={onSettings}
           style={{ WebkitAppRegion: 'no-drag', padding: 'var(--padding-xs)' } as React.CSSProperties}
           className="rounded-lg mr-0.5 text-gray-500 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-          title="Settings"
+          title={t('settings')}
         >
           <svg  width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
@@ -110,7 +112,7 @@ export function TabBar({ presets, activePresetId, onSelect, onSettings, onHide, 
           onClick={onHide}
           style={{ WebkitAppRegion: 'no-drag', padding: 'var(--padding-xs)' } as React.CSSProperties}
           className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600 transition-colors"
-          title="Hide"
+          title={t('hide')}
         />
       </div>
 
@@ -126,20 +128,20 @@ export function TabBar({ presets, activePresetId, onSelect, onSettings, onHide, 
             className="w-full text-xs text-left text-gray-700 dark:text-gray-300 hover:bg-surface-100 dark:hover:bg-surface-700"
             style={{ padding: 'var(--padding-sm) var(--padding)' }}
           >
-            ✏️ Edit
+            ✏️ {t('edit')}
           </button>
           <button
             onClick={() => { onClearConversation(contextMenu.presetId); setContextMenu(null) }}
             className="w-full text-xs text-left text-gray-700 dark:text-gray-300 hover:bg-surface-100 dark:hover:bg-surface-700"
             style={{ padding: 'var(--padding-sm) var(--padding)' }}
           >
-            {presets.find((p) => p.id === contextMenu.presetId)?.type === 'agent' ? '🗑️ Clear agent' : '🗑️ Clear chat'}
+            {presets.find((p) => p.id === contextMenu.presetId)?.type === 'agent' ? `🗑️ ${t('clearAgent')}` : `🗑️ ${t('clearChat')}`}
           </button>
           <button
             onClick={() => { onDeletePreset(contextMenu.presetId); setContextMenu(null) }}
             className="w-full px-3 py-1.5 text-xs text-left text-red-500 hover:bg-surface-100 dark:hover:bg-surface-700"
           >
-            ❌ Delete tab
+            ❌ {t('deleteTab')}
           </button>
         </div>
       )}

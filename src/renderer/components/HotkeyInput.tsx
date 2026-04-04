@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react'
+import { useI18n } from '../lib/i18n'
 
 interface Props {
   value: string
@@ -43,6 +44,7 @@ function acceleratorToDisplay(accelerator: string): string {
 }
 
 export function HotkeyInput({ value, onChange, label }: Props) {
+  const { t } = useI18n()
   const [recording, setRecording] = useState(false)
   const [manualMode, setManualMode] = useState(false)
   const [manualValue, setManualValue] = useState('')
@@ -136,14 +138,14 @@ export function HotkeyInput({ value, onChange, label }: Props) {
             {recording
               ? displayKeys.length > 0
                 ? displayKeys.join(' + ') + ' + ...'
-                : 'Press a key combination...'
+                : t('pressKeyCombination')
               : acceleratorToDisplay(value)}
           </div>
           <button
             onClick={() => { setRecording(false); setManualMode(true); setManualValue(acceleratorToDisplay(value)) }}
             className="rounded-lg bg-surface-200 dark:bg-surface-700 text-gray-500 text-sm hover:bg-surface-300 dark:hover:bg-surface-600"
             style={{ padding: 'var(--padding-sm) 0.625rem' }}
-            title="Type manually">edit</button>
+            title={t('typeManually')}>edit</button>
         </div>
       )}
     </div>

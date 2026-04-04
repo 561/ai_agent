@@ -6,6 +6,8 @@ import {
   ipcMain,
   clipboard,
   session,
+  shell,
+  Menu,
 } from 'electron'
 
 import path from 'path'
@@ -13,6 +15,7 @@ import { execSync } from 'child_process'
 import fs from 'fs'
 import { setupTray } from './tray'
 import { setupIpcHandlers } from './ipc-handlers'
+import { setupPlaywrightHandlers } from './playwright-agent'
 import { setupGlobalInput, teardownGlobalInput } from './global-input'
 
 let mainWindow: BrowserWindow | null = null
@@ -44,6 +47,19 @@ function createWindow() {
       contextIsolation: false,
       webviewTag: true,
     },
+  })
+
+  // Open all links in the system browser, never inside Electron
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url)
+    return { action: 'deny' }
+  })
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    // Allow loading the app itself (dev server or file://)
+    if (process.env.VITE_DEV_SERVER_URL && url.startsWith(process.env.VITE_DEV_SERVER_URL)) return
+    if (url.startsWith('file://')) return
+    event.preventDefault()
+    shell.openExternal(url)
   })
 
   if (process.env.VITE_DEV_SERVER_URL) {
@@ -166,8 +182,21 @@ app.whenReady().then(() => {
 
   createWindow()
   registerHotkeys()
+
+  // Native context menu on right-click
+  mainWindow!.webContents.on('context-menu', (_event, params) => {
+    const menu = Menu.buildFromTemplate([
+      { label: 'Cut', role: 'cut', enabled: params.editFlags.canCut },
+      { label: 'Copy', role: 'copy', enabled: params.editFlags.canCopy },
+      { label: 'Paste', role: 'paste', enabled: params.editFlags.canPaste },
+      { type: 'separator' },
+      { label: 'Select All', role: 'selectAll' },
+    ])
+    menu.popup()
+  })
   setupTray(mainWindow!, toggleWindow)
   setupIpcHandlers(mainWindow!, updateHotkey, updateWindowMode)
+  setupPlaywrightHandlers()
   setupGlobalInput(() => mainWindow)
 
 })

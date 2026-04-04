@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { TabBar } from './components/TabBar'
 import { Chat } from './components/Chat'
@@ -7,6 +7,8 @@ import { Settings } from './components/Settings'
 import { PresetEditor } from './components/PresetEditor'
 import { useSettings, usePresets } from './hooks/useSettings'
 import { useChat } from './hooks/useChat'
+import { useAgentChat } from './hooks/useAgentChat'
+import { I18nContext, getTranslator } from './lib/i18n'
 
 type View = 'chat' | 'settings' | 'presets'
 
@@ -40,6 +42,21 @@ export function App() {
     stopStreaming,
     clearConversation,
   } = useChat(settings, presets)
+
+  const {
+    conversations: agentConversations,
+    activeConversation: activeAgentConversation,
+    activeConversationId: activeAgentConversationId,
+    setActiveConversationId: setActiveAgentConversationId,
+    startConversation: startAgentConversation,
+    sendTask,
+    respondToAgent,
+    isRunning: isAgentRunning,
+    isWaitingForUser,
+    statusText: agentStatusText,
+    stopAgent,
+    clearConversation: clearAgentConversation,
+  } = useAgentChat(settings, presets)
 
   // Apply accent color and font size as CSS variables
   useEffect(() => {
@@ -148,6 +165,12 @@ export function App() {
     }
   }, [])
 
+  const language = settings.language || 'en'
+  const i18nValue = useMemo(() => ({
+    t: getTranslator(language),
+    language,
+  }), [language])
+
   const activePreset = presets.find((p) => p.id === activePresetId) || null
 
   const handlePresetSelectRef = useRef<(id: string) => void>(() => {})
@@ -169,12 +192,22 @@ export function App() {
   const handlePresetSelect = (presetId: string) => {
     setActivePresetId(presetId)
     resizeForPreset(presetId)
-    // Find or create conversation for this preset
-    const existing = conversations.find((c) => c.presetId === presetId)
-    if (existing) {
-      setActiveConversationId(existing.id)
+
+    const preset = presetsRef.current.find((p) => p.id === presetId)
+    if (preset?.type === 'agent') {
+      const existing = agentConversations.find((c) => c.presetId === presetId)
+      if (existing) {
+        setActiveAgentConversationId(existing.id)
+      } else {
+        startAgentConversation(presetId)
+      }
     } else {
-      startConversation(presetId)
+      const existing = conversations.find((c) => c.presetId === presetId)
+      if (existing) {
+        setActiveConversationId(existing.id)
+      } else {
+        startConversation(presetId)
+      }
     }
   }
   handlePresetSelectRef.current = handlePresetSelect
@@ -189,6 +222,14 @@ export function App() {
     }
 
     sendMessage(content, images, systemInstruction, convId)
+  }
+
+  const handleAgentSend = (content: string) => {
+    let convId = activeAgentConversationId
+    if (!convId) {
+      convId = startAgentConversation(activePresetId)
+    }
+    sendTask(content, convId)
   }
 
   useEffect(() => {
@@ -227,8 +268,14 @@ export function App() {
   }
 
   const handleClearConversation = (presetId: string) => {
-    const conv = conversations.find((c) => c.presetId === presetId)
-    if (conv) clearConversation(conv.id)
+    const preset = presets.find((p) => p.id === presetId)
+    if (preset?.type === 'agent') {
+      const conv = agentConversations.find((c) => c.presetId === presetId)
+      if (conv) clearAgentConversation(conv.id)
+    } else {
+      const conv = conversations.find((c) => c.presetId === presetId)
+      if (conv) clearConversation(conv.id)
+    }
   }
 
   const handleDeletePreset = (presetId: string) => {
@@ -249,6 +296,7 @@ export function App() {
   }
 
   return (
+    <I18nContext.Provider value={i18nValue}>
     <div
       className="flex flex-col h-screen rounded-2xl overflow-hidden shadow-2xl border border-surface-200 dark:border-surface-700"
       style={{ backgroundColor: settings.bgColor || '#1e293b' }}
@@ -276,7 +324,7 @@ export function App() {
             style={{ backgroundColor: settings.headerColor || '#0f172a', color: settings.textColor || '#e2e8f0', WebkitAppRegion: 'drag', padding: `var(--padding-sm) var(--padding)` } as React.CSSProperties}
           >
             <span className="text-xs font-semibold opacity-60">
-              {view === 'settings' ? 'Settings' : 'Presets'}
+              {view === 'settings' ? i18nValue.t('settings') : i18nValue.t('presets')}
             </span>
             <div style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
               <button onClick={handleHide} className="w-3 h-3 rounded-full bg-red-500 hover:bg-red-600" title="Hide" />
@@ -304,11 +352,13 @@ export function App() {
           />
         ) : activePreset?.type === 'agent' ? (
           <AgentView
-            conversation={activeConversation}
-            isStreaming={isStreaming}
-            streamingText={streamingText}
-            onSend={handleSend}
-            onStop={stopStreaming}
+            conversation={activeAgentConversation}
+            isRunning={isAgentRunning}
+            isWaitingForUser={isWaitingForUser}
+            statusText={agentStatusText}
+            onSendTask={handleAgentSend}
+            onRespondToAgent={(answer) => respondToAgent(answer, activeAgentConversationId!)}
+            onStop={stopAgent}
             focusSignal={chatFocusSignal}
             preset={activePreset}
           />
@@ -325,5 +375,6 @@ export function App() {
         )}
       </div>
     </div>
+    </I18nContext.Provider>
   )
 }

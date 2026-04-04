@@ -22,6 +22,11 @@ const defaultSettings: AppSettings = {
   headerColor: '#0f172a',
   textColor: '#e2e8f0',
   fontSize: 'md',
+  language: 'en',
+  telegram: {
+    botToken: '',
+    chatId: '',
+  },
 }
 
 function isAscii(s: string): boolean {
