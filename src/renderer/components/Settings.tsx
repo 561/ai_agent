@@ -180,6 +180,18 @@ export function Settings({ settings, onUpdate, onClose, onEditPresets }: Props) 
           }}
         />
 
+        <div>
+          <label className="block text-sm font-medium text-gray-500 dark:text-gray-400" style={{ marginBottom: 'var(--padding-sm)' }}>
+            Switch Tabs Hotkey
+          </label>
+          <div
+            className="text-xs text-gray-400 dark:text-gray-500 rounded-lg select-none"
+            style={{ padding: 'var(--padding-sm) var(--padding)', backgroundColor: 'var(--header)', color: 'var(--text)', opacity: 0.7 }}
+          >
+            Ctrl + Shift + ← / →
+          </div>
+        </div>
+
         {/* Window Mode */}
         <div>
           <label className="block text-sm font-medium text-gray-500 dark:text-gray-400" style={{ marginBottom: 'var(--padding-sm)' }}>

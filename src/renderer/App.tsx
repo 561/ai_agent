@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { TabBar } from './components/TabBar'
 import { Chat } from './components/Chat'
@@ -15,6 +15,17 @@ export function App() {
   const [activePresetId, setActivePresetId] = useState(presets[0]?.id || 'general')
   const [view, setView] = useState<View>('chat')
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null)
+  const [chatFocusSignal, setChatFocusSignal] = useState(0)
+
+  // Refs to avoid stale closures in event handlers
+  const presetsRef = useRef(presets)
+  presetsRef.current = presets
+  const activePresetIdRef = useRef(activePresetId)
+  activePresetIdRef.current = activePresetId
+  const viewRef = useRef(view)
+  viewRef.current = view
+
+  const triggerChatFocus = useCallback(() => setChatFocusSignal((s) => s + 1), [])
 
   const {
     conversations,
@@ -59,6 +70,19 @@ export function App() {
       const { ipcRenderer } = window.require('electron')
       ipcRenderer.on('open-settings', () => setView('settings'))
 
+      ipcRenderer.on('global-wheel-tab-switch', (_: any, direction: 'left' | 'right') => {
+        if (viewRef.current !== 'chat') return
+        const ps = presetsRef.current
+        const currentIndex = ps.findIndex((p) => p.id === activePresetIdRef.current)
+        if (currentIndex === -1 || ps.length <= 1) return
+        const nextIndex =
+          direction === 'right'
+            ? (currentIndex + 1) % ps.length
+            : (currentIndex - 1 + ps.length) % ps.length
+        handlePresetSelectRef.current(ps[nextIndex].id)
+        triggerChatFocus()
+      })
+
       // Sync saved hotkey to main process on startup
       if (settings.hotkey) {
         ipcRenderer.send('update-hotkey', settings.hotkey)
@@ -67,20 +91,63 @@ export function App() {
       // Sync window mode to main process on startup
       ipcRenderer.send('update-window-mode', settings.windowMode || 'cursor')
 
-      // ESC to hide window
+      // ESC to hide window; Ctrl+Shift+Arrow to switch tabs
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
           ipcRenderer.send('hide-window')
+          return
+        }
+
+        if (e.ctrlKey && e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+          if (viewRef.current !== 'chat') return
+          e.preventDefault()
+          const ps = presetsRef.current
+          const currentIndex = ps.findIndex((p) => p.id === activePresetIdRef.current)
+          if (currentIndex === -1 || ps.length <= 1) return
+          const nextIndex =
+            e.key === 'ArrowRight'
+              ? (currentIndex + 1) % ps.length
+              : (currentIndex - 1 + ps.length) % ps.length
+          handlePresetSelectRef.current(ps[nextIndex].id)
+          triggerChatFocus()
         }
       }
       window.addEventListener('keydown', handleKeyDown)
 
+      // Focus chat input when window regains focus
+      const handleWindowFocus = () => {
+        if (viewRef.current === 'chat') triggerChatFocus()
+      }
+      window.addEventListener('focus', handleWindowFocus)
+
+      // Ctrl+Shift+Wheel to switch tabs
+      const handleWheel = (e: WheelEvent) => {
+        if (!e.ctrlKey || !e.shiftKey) return
+        if (viewRef.current !== 'chat') return
+        e.preventDefault()
+        const ps = presetsRef.current
+        const currentIndex = ps.findIndex((p) => p.id === activePresetIdRef.current)
+        if (currentIndex === -1 || ps.length <= 1) return
+        const nextIndex =
+          e.deltaY > 0
+            ? (currentIndex + 1) % ps.length
+            : (currentIndex - 1 + ps.length) % ps.length
+        handlePresetSelectRef.current(ps[nextIndex].id)
+        triggerChatFocus()
+      }
+      window.addEventListener('wheel', handleWheel, { passive: false })
+
       return () => {
         ipcRenderer.removeAllListeners('open-settings')
+        ipcRenderer.removeAllListeners('global-wheel-tab-switch')
         window.removeEventListener('keydown', handleKeyDown)
+        window.removeEventListener('focus', handleWindowFocus)
+        window.removeEventListener('wheel', handleWheel)
       }
     }
   }, [])
+
+  const handlePresetSelectRef = useRef<(id: string) => void>(() => {})
 
   const handlePresetSelect = (presetId: string) => {
     setActivePresetId(presetId)
@@ -92,6 +159,7 @@ export function App() {
       startConversation(presetId)
     }
   }
+  handlePresetSelectRef.current = handlePresetSelect
 
   const handleSend = (content: string, images: any[]) => {
     const preset = presets.find((p) => p.id === activePresetId)
@@ -204,7 +272,7 @@ export function App() {
           <Settings
             settings={settings}
             onUpdate={updateSettings}
-            onClose={() => setView('chat')}
+            onClose={() => { setView('chat'); triggerChatFocus() }}
             onEditPresets={() => setView('presets')}
           />
         ) : view === 'presets' ? (
@@ -214,7 +282,7 @@ export function App() {
             onAdd={addPreset}
             onRemove={removePreset}
             initialEditingId={editingPresetId}
-            onClose={() => { setView('chat'); setEditingPresetId(null) }}
+            onClose={() => { setView('chat'); setEditingPresetId(null); triggerChatFocus() }}
           />
         ) : (
           <Chat
@@ -224,6 +292,7 @@ export function App() {
             onSend={handleSend}
             onStop={stopStreaming}
             groqApiKey={settings.apiKeys.groq}
+            focusSignal={chatFocusSignal}
           />
         )}
       </div>

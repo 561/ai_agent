@@ -17,7 +17,7 @@ export default defineConfig({
           build: {
             outDir: path.join(ROOT, 'dist-electron/main'),
             rollupOptions: {
-              external: ['electron', 'electron-store', 'path', 'url', 'child_process', 'util'],
+              external: ['electron', 'electron-store', 'path', 'url', 'child_process', 'util', 'fs', 'uiohook-napi'],
               output: {
                 format: 'cjs',
               },

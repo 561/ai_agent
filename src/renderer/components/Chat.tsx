@@ -10,9 +10,10 @@ interface Props {
   onSend: (content: string, images: ImageAttachment[]) => void
   onStop: () => void
   groqApiKey?: string
+  focusSignal?: number
 }
 
-export function Chat({ conversation, isStreaming, streamingText, onSend, onStop, groqApiKey }: Props) {
+export function Chat({ conversation, isStreaming, streamingText, onSend, onStop, groqApiKey, focusSignal }: Props) {
   const [input, setInput] = useState('')
   const [images, setImages] = useState<ImageAttachment[]>([])
   const [isRecording, setIsRecording] = useState(false)
@@ -26,6 +27,10 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [conversation?.messages, streamingText])
+
+  useEffect(() => {
+    textareaRef.current?.focus()
+  }, [focusSignal])
 
 
   const handleSubmit = () => {

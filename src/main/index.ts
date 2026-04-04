@@ -13,6 +13,7 @@ import { execSync } from 'child_process'
 import fs from 'fs'
 import { setupTray } from './tray'
 import { setupIpcHandlers } from './ipc-handlers'
+import { setupGlobalInput, teardownGlobalInput } from './global-input'
 
 let mainWindow: BrowserWindow | null = null
 let currentHotkey = 'CommandOrControl+Shift+Space'
@@ -166,11 +167,13 @@ app.whenReady().then(() => {
   registerHotkeys()
   setupTray(mainWindow!, toggleWindow)
   setupIpcHandlers(mainWindow!, updateHotkey, updateWindowMode)
+  setupGlobalInput(() => mainWindow)
 
 })
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll()
+  teardownGlobalInput()
 })
 
 app.on('window-all-closed', () => {
