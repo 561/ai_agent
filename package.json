@@ -5,9 +5,9 @@
   "main": "dist-electron/main/index.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
-    "build:linux": "tsc && vite build && electron-builder --linux",
-    "build:win": "tsc && vite build && electron-builder --win",
+    "build": "tsc && vite build && electron-builder && node scripts/post-build.js",
+    "build:linux": "tsc && vite build && electron-builder --linux && node scripts/post-build.js",
+    "build:win": "tsc && vite build && electron-builder --win && node scripts/post-build.js",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },
@@ -28,6 +28,7 @@
     "uuid": "^10.0.0"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@types/uuid": "^10.0.0",
