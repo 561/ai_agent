@@ -242,26 +242,45 @@ export async function runAgentLoop(
     ],
   })
 
+  const startTime = performance.now()
+  let totalPromptTokens = 0
+  let totalCandidatesTokens = 0
+  let totalRequests = 0
+
   const MAX_STEPS = 30
 
   for (let step = 0; step < MAX_STEPS; step++) {
     if (abortSignal.aborted) {
+      const duration = ((performance.now() - startTime) / 1000).toFixed(1)
+      console.log(`[Agent] Total Stats: ${totalRequests} requests, ${totalPromptTokens + totalCandidatesTokens} tokens, ${duration}s total time`)
       callbacks.onDone('Agent stopped by user.')
       return
     }
 
     // Call generateContent with full history
     let result
+    const requestStartTime = performance.now()
     try {
+      totalRequests++
       result = await geminiModel.generateContent({ contents: history })
     } catch (err: any) {
       callbacks.onError('LLM error: ' + err.message)
       return
     }
+    const requestDuration = ((performance.now() - requestStartTime) / 1000).toFixed(2)
 
     const usage = result.response.usageMetadata
     if (usage) {
-      console.log(`[Agent Step ${step + 1}] Tokens — prompt: ${usage.promptTokenCount}, response: ${usage.candidatesTokenCount}, total: ${usage.totalTokenCount}`)
+      const p = usage.promptTokenCount || 0
+      const c = usage.candidatesTokenCount || 0
+      totalPromptTokens += p
+      totalCandidatesTokens += c
+      console.log(
+        `[Agent Step ${step + 1}] Request #${totalRequests} | ` +
+        `Tokens: ${p} prompt + ${c} response = ${p + c} | ` +
+        `Accumulated: ${totalPromptTokens + totalCandidatesTokens} | ` +
+        `Time: ${requestDuration}s`
+      )
     }
 
     const candidate = result.response.candidates?.[0]
@@ -344,6 +363,8 @@ export async function runAgentLoop(
             break
           case 'done':
             callbacks.onAction({ tool: 'done', args, result: args.summary })
+            const finalDuration = ((performance.now() - startTime) / 1000).toFixed(1)
+            console.log(`[Agent] Task Completed | Total Stats: ${totalRequests} requests, ${totalPromptTokens + totalCandidatesTokens} tokens, ${finalDuration}s total time`)
             callbacks.onDone(args.summary)
             return
           default:
