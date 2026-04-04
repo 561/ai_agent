@@ -1,26 +1,29 @@
-import { ipcMain } from 'electron'
-import { chromium, type Browser, type BrowserContext, type Page } from 'playwright'
+import { ipcMain, app } from 'electron'
+import { chromium, type BrowserContext, type Page } from 'playwright'
+import path from 'path'
 
-let browser: Browser | null = null
 let context: BrowserContext | null = null
 let page: Page | null = null
+
+function getProfilePath(): string {
+  return path.join(app.getPath('userData'), 'browser-profile')
+}
 
 async function ensureBrowser(): Promise<Page> {
   if (page && !page.isClosed()) return page
 
-  if (browser) {
-    try { await browser.close() } catch {}
+  if (context) {
+    try { await context.close() } catch {}
   }
 
-  browser = await chromium.launch({
+  // Persistent context keeps cookies, logins, localStorage between sessions
+  context = await chromium.launchPersistentContext(getProfilePath(), {
     headless: false,
     args: ['--no-sandbox', '--disable-blink-features=AutomationControlled'],
-  })
-  context = await browser.newContext({
     viewport: { width: 1280, height: 800 },
     userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   })
-  page = await context.newPage()
+  page = context.pages()[0] || await context.newPage()
   await page.goto('https://www.google.com', { waitUntil: 'domcontentloaded', timeout: 10000 }).catch(() => {})
   return page
 }
@@ -79,9 +82,8 @@ export function setupPlaywrightHandlers() {
   })
 
   ipcMain.handle('pw:close', async () => {
-    if (browser) {
-      await browser.close()
-      browser = null
+    if (context) {
+      await context.close()
       context = null
       page = null
     }
@@ -213,9 +215,10 @@ export function setupPlaywrightHandlers() {
 
   // Cleanup on app quit
   const cleanup = async () => {
-    if (browser) {
-      await browser.close().catch(() => {})
-      browser = null
+    if (context) {
+      await context.close().catch(() => {})
+      context = null
+      page = null
     }
   }
 
