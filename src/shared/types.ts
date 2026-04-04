@@ -12,6 +12,8 @@ export interface ImageAttachment {
   name: string
 }
 
+export type PresetType = 'chat' | 'agent'
+
 export interface Preset {
   id: string
   name: string
@@ -19,6 +21,15 @@ export interface Preset {
   icon?: string
   llmProvider?: LLMProvider
   llmModel?: string
+  type?: PresetType
+}
+
+export interface AgentState {
+  currentUrl: string
+  pageTitle: string
+  isLoading: boolean
+  canGoBack: boolean
+  canGoForward: boolean
 }
 
 export interface Conversation {

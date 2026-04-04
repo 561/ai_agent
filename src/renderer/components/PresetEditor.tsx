@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
-import type { Preset, LLMProvider } from '../../shared/types'
+import type { Preset, LLMProvider, PresetType } from '../../shared/types'
 
 interface Props {
   presets: Preset[]
@@ -78,13 +78,28 @@ export function PresetEditor({ presets, onUpdate, onAdd, onRemove, onClose, init
                     placeholder="Name"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                    Tab Type
+                  </label>
+                  <select
+                    value={preset.type || 'chat'}
+                    onChange={(e) => onUpdate(preset.id, { type: e.target.value as PresetType })}
+                    className="w-full rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
+                    style={{ padding: 'var(--padding-sm)', backgroundColor: 'var(--bg)', color: 'var(--text)', border: '1px solid rgba(255,255,255,0.1)' }}
+                  >
+                    <option value="chat">Chat</option>
+                    <option value="agent">Agent (Browser)</option>
+                  </select>
+                </div>
+
                 <textarea
                   value={preset.systemInstruction}
                   onChange={(e) => onUpdate(preset.id, { systemInstruction: e.target.value })}
                   rows={4}
                   className="w-full rounded-lg text-sm outline-none resize-none"
                   style={{ padding: 'var(--padding)', backgroundColor: 'var(--bg)', color: 'var(--text)', border: '1px solid rgba(255,255,255,0.1)' }}
-                  placeholder="System instruction..."
+                  placeholder={preset.type === 'agent' ? 'Agent instructions...' : 'System instruction...'}
                 />
 
                 {/* AI Provider & Model Overrides */}

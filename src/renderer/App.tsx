@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import { TabBar } from './components/TabBar'
 import { Chat } from './components/Chat'
+import { AgentView } from './components/AgentView'
 import { Settings } from './components/Settings'
 import { PresetEditor } from './components/PresetEditor'
 import { useSettings, usePresets } from './hooks/useSettings'
@@ -147,10 +148,27 @@ export function App() {
     }
   }, [])
 
+  const activePreset = presets.find((p) => p.id === activePresetId) || null
+
   const handlePresetSelectRef = useRef<(id: string) => void>(() => {})
+
+  const resizeForPreset = (presetId: string) => {
+    // @ts-ignore
+    if (window.require) {
+      // @ts-ignore
+      const { ipcRenderer } = window.require('electron')
+      const preset = presetsRef.current.find((p) => p.id === presetId)
+      if (preset?.type === 'agent') {
+        ipcRenderer.send('set-window-size', 900, 750)
+      } else {
+        ipcRenderer.send('set-window-size', 480, 640)
+      }
+    }
+  }
 
   const handlePresetSelect = (presetId: string) => {
     setActivePresetId(presetId)
+    resizeForPreset(presetId)
     // Find or create conversation for this preset
     const existing = conversations.find((c) => c.presetId === presetId)
     if (existing) {
@@ -283,6 +301,16 @@ export function App() {
             onRemove={removePreset}
             initialEditingId={editingPresetId}
             onClose={() => { setView('chat'); setEditingPresetId(null); triggerChatFocus() }}
+          />
+        ) : activePreset?.type === 'agent' ? (
+          <AgentView
+            conversation={activeConversation}
+            isStreaming={isStreaming}
+            streamingText={streamingText}
+            onSend={handleSend}
+            onStop={stopStreaming}
+            focusSignal={chatFocusSignal}
+            preset={activePreset}
           />
         ) : (
           <Chat

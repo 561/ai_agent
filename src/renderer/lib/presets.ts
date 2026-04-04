@@ -29,4 +29,12 @@ export const defaultPresets: Preset[] = [
       'You are a skilled writer and editor. Help improve text: fix grammar, enhance clarity, adjust tone, restructure content. Provide suggestions and alternatives when asked.',
     icon: '✍️',
   },
+  {
+    id: 'web-agent',
+    name: 'Web Agent',
+    systemInstruction:
+      'You are a web browsing agent. The user has a browser open alongside this chat. Help them with web tasks: analyze page content, suggest what to click or where to navigate, extract information from websites, and provide guidance on web interactions.',
+    icon: '🌍',
+    type: 'agent',
+  },
 ]

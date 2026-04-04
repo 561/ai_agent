@@ -75,6 +75,9 @@ export function TabBar({ presets, activePresetId, onSelect, onSettings, onHide, 
         >
           {preset.icon && <span>{preset.icon}</span>}
           {preset.name}
+          {preset.type === 'agent' && (
+            <span className="text-[8px] opacity-50 uppercase tracking-wider">agent</span>
+          )}
         </button>
       ))}
 
@@ -130,7 +133,7 @@ export function TabBar({ presets, activePresetId, onSelect, onSettings, onHide, 
             className="w-full text-xs text-left text-gray-700 dark:text-gray-300 hover:bg-surface-100 dark:hover:bg-surface-700"
             style={{ padding: 'var(--padding-sm) var(--padding)' }}
           >
-            🗑️ Clear chat
+            {presets.find((p) => p.id === contextMenu.presetId)?.type === 'agent' ? '🗑️ Clear agent' : '🗑️ Clear chat'}
           </button>
           <button
             onClick={() => { onDeletePreset(contextMenu.presetId); setContextMenu(null) }}
