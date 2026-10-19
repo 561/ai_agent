@@ -93,8 +93,8 @@ export function CompactChat({ conversation, isStreaming, streamingText, onSend, 
         <div className="flex items-end" style={{ gap: 'var(--padding-xs)' }}>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex-shrink-0 rounded-lg text-gray-500 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-            style={{ padding: 'var(--padding-sm)' }}
+            className="flex-shrink-0 flex items-center justify-center rounded-xl text-gray-500 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+            style={{ width: 30, height: 30 }}
             title={t('attachImage')}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -115,12 +115,12 @@ export function CompactChat({ conversation, isStreaming, streamingText, onSend, 
             className="flex-1 resize-none bg-surface-100 dark:bg-surface-800 rounded-lg text-xs outline-none focus:ring-1 focus:ring-blue-500 dark:text-white max-h-20 overflow-y-auto"
             style={{ minHeight: '30px', padding: 'var(--padding-sm) var(--padding)' }}
           />
-          <ContextRing tokens={conversation?.contextTokens} />
+          <ContextRing tokens={conversation?.contextTokens} boxSize={30} />
           {isStreaming ? (
             <button
               onClick={onStop}
-              className="flex-shrink-0 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
-              style={{ padding: 'var(--padding-sm)' }}
+              className="flex-shrink-0 flex items-center justify-center rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
+              style={{ width: 30, height: 30 }}
               title="Stop"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -131,8 +131,8 @@ export function CompactChat({ conversation, isStreaming, streamingText, onSend, 
             <button
               onClick={handleSubmit}
               disabled={!input.trim() && images.length === 0}
-              className="flex-shrink-0 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              style={{ padding: 'var(--padding-sm)' }}
+              className="flex-shrink-0 flex items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              style={{ width: 30, height: 30 }}
               title="Send"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

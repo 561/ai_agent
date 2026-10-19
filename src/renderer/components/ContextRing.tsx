@@ -4,6 +4,8 @@ import { useI18n } from '../lib/i18n'
 
 interface Props {
   tokens?: number
+  // Matches the neighbouring buttons so the row lines up
+  boxSize: number
 }
 
 const SIZE = 22
@@ -12,7 +14,7 @@ const RADIUS = (SIZE - STROKE) / 2
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
 // Share of the model's context window the latest request used; exact tokens on hover
-export function ContextRing({ tokens = 0 }: Props) {
+export function ContextRing({ tokens = 0, boxSize }: Props) {
   const { t } = useI18n()
   const ratio = Math.min(tokens / GEMINI_CONTEXT_LIMIT, 1)
   const percent = ratio * 100
@@ -22,9 +24,9 @@ export function ContextRing({ tokens = 0 }: Props) {
   const color = percent >= 80 ? '#ef4444' : percent >= 50 ? '#f59e0b' : '#3b82f6'
 
   return (
-    <div className="relative group flex-shrink-0 self-center">
+    <div className="relative group flex-shrink-0 flex items-center justify-center" style={{ width: boxSize, height: boxSize }}>
       <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} className="-rotate-90">
-        <circle cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} fill="none" stroke="currentColor" strokeWidth={STROKE} className="text-surface-300 dark:text-surface-600" />
+        <circle cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} fill="none" stroke="rgba(148, 163, 184, 0.35)" strokeWidth={STROKE} />
         <circle
           cx={SIZE / 2}
           cy={SIZE / 2}

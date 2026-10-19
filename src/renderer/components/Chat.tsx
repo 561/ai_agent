@@ -167,8 +167,8 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
         <div className="flex items-end" style={{ gap: 'var(--gap)' }}>
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex-shrink-0 mb-1 rounded-lg text-gray-500 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
-            style={{ padding: '0  0 var(--padding-xs) var(--padding-xs)' }}
+            className="flex-shrink-0 flex items-center justify-center rounded-xl text-gray-500 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+            style={{ width: 36, height: 36 }}
             title={t('attachImage')}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -199,14 +199,14 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
           <button
             onClick={handleMicClick}
             disabled={isTranscribing}
-            className={`flex-shrink-0 mb-0.5 rounded-xl transition-colors ${
+            className={`flex-shrink-0 flex items-center justify-center rounded-xl transition-colors ${
               isRecording
                 ? 'bg-red-500 text-white animate-pulse'
                 : isTranscribing
                   ? 'text-gray-400 cursor-wait'
                   : 'text-gray-500 hover:bg-surface-200 dark:hover:bg-surface-700'
             }`}
-            style={{ padding: 'var(--padding-sm)' }}
+            style={{ width: 36, height: 36 }}
             title={isRecording ? t('stopRecording') : isTranscribing ? t('transcribing') : t('voiceInput')}
           >
             {isTranscribing ? (
@@ -223,12 +223,12 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
               </svg>
             )}
           </button>
-          <ContextRing tokens={conversation?.contextTokens} />
+          <ContextRing tokens={conversation?.contextTokens} boxSize={36} />
           {isStreaming ? (
             <button
               onClick={onStop}
-              className="flex-shrink-0 mb-0.5 rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
-              style={{ padding: 'var(--padding-sm)' }}
+              className="flex-shrink-0 flex items-center justify-center rounded-xl bg-red-500 text-white hover:bg-red-600 transition-colors"
+              style={{ width: 36, height: 36 }}
               title={t('stop')}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -239,8 +239,8 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
             <button
               onClick={handleSubmit}
               disabled={!input.trim() && images.length === 0}
-              className="flex-shrink-0 mb-0.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-              style={{ padding: 'var(--padding-sm)' }}
+              className="flex-shrink-0 flex items-center justify-center rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              style={{ width: 36, height: 36 }}
               title={t('send')}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
