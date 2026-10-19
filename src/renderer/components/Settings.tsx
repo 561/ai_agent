@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react'
 import type { AppSettings, LLMProvider } from '../../shared/types'
 import { HotkeyInput } from './HotkeyInput'
 import { useI18n } from '../lib/i18n'
+import { GEMINI_MODELS, DEFAULT_CHAT_MODEL, resolveModel } from '../lib/models'
 
 interface Props {
   settings: AppSettings
@@ -35,13 +36,6 @@ export function Settings({ settings, onUpdate, onClose, onEditPresets }: Props) 
     { value: 'openai', label: 'OpenAI (coming soon)' },
   ]
 
-  const geminiModels = [
-    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (Recommended)' },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Thinking)' },
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Thinking, Best)' },
-    { value: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash Lite Preview' },
-    { value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro Preview' },
-  ]
 
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: 'general', label: t('general') },
@@ -165,12 +159,12 @@ export function Settings({ settings, onUpdate, onClose, onEditPresets }: Props) 
                   {t('geminiModel')}
                 </label>
                 <select
-                  value={settings.geminiModel || 'gemini-2.5-flash-lite'}
+                  value={resolveModel(settings.geminiModel, DEFAULT_CHAT_MODEL)}
                   onChange={(e) => onUpdate({ geminiModel: e.target.value })}
                   className="w-full bg-surface-100 dark:bg-surface-800 rounded-lg text-sm dark:text-white outline-none focus:ring-2 focus:ring-blue-500"
                   style={{ padding: 'var(--padding-sm) var(--padding)' }}
                 >
-                  {geminiModels.map((m) => (
+                  {GEMINI_MODELS.map((m) => (
                     <option key={m.value} value={m.value}>
                       {m.label}
                     </option>

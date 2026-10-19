@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import type { Preset, LLMProvider, PresetType } from '../../shared/types'
 import { useI18n } from '../lib/i18n'
+import { GEMINI_MODELS, resolveModel } from '../lib/models'
 
 interface Props {
   presets: Preset[]
@@ -22,13 +23,6 @@ export function PresetEditor({ presets, onUpdate, onAdd, onRemove, onClose, init
     { value: 'openai', label: 'OpenAI' },
   ]
 
-  const geminiModels = [
-    { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite (Recommended)' },
-    { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Thinking)' },
-    { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Thinking, Best)' },
-    { value: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash Lite Preview' },
-    { value: 'gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro Preview' },
-  ]
 
   const handleAdd = () => {
     const newPreset: Preset = {
@@ -151,13 +145,13 @@ export function PresetEditor({ presets, onUpdate, onAdd, onRemove, onClose, init
                       {t('aiModelDefault')}
                     </label>
                     <select
-                      value={preset.llmModel || ''}
+                      value={preset.llmModel ? resolveModel(preset.llmModel, '') : ''}
                       onChange={(e) => onUpdate(preset.id, { llmModel: e.target.value || undefined })}
                       className="w-full rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500"
                       style={{ padding: 'var(--padding-sm)', backgroundColor: 'var(--bg)', color: 'var(--text)', border: '1px solid rgba(255,255,255,0.1)' }}
                     >
                       <option value="">{t('useGlobalDefault')}</option>
-                      {geminiModels.map((m) => (
+                      {GEMINI_MODELS.map((m) => (
                         <option key={m.value} value={m.value}>
                           {m.label}
                         </option>

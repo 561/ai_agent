@@ -6,19 +6,20 @@ import { ClaudeProvider } from '../lib/providers/claude'
 import { OpenAIProvider } from '../lib/providers/openai'
 import type { LLMProviderInterface } from '../lib/providers/base'
 import { loadConversations, saveConversations } from '../lib/storage'
+import { DEFAULT_CHAT_MODEL, resolveModel } from '../lib/models'
 
 function getProvider(settings: AppSettings, provider?: LLMProvider, model?: string): LLMProviderInterface {
   const activeProvider = provider || settings.activeProvider
 
   switch (activeProvider) {
     case 'gemini':
-      return new GeminiProvider(settings.apiKeys.gemini, model || settings.geminiModel)
+      return new GeminiProvider(settings.apiKeys.gemini, resolveModel(model || settings.geminiModel, DEFAULT_CHAT_MODEL))
     case 'claude':
       return new ClaudeProvider(settings.apiKeys.claude)
     case 'openai':
       return new OpenAIProvider(settings.apiKeys.openai)
     default:
-      return new GeminiProvider(settings.apiKeys.gemini, model || settings.geminiModel)
+      return new GeminiProvider(settings.apiKeys.gemini, resolveModel(model || settings.geminiModel, DEFAULT_CHAT_MODEL))
   }
 }
 

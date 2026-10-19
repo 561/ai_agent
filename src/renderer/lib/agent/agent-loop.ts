@@ -1,8 +1,9 @@
-import { GoogleGenerativeAI, type FunctionDeclaration, SchemaType, type Part, type Content } from '@google/generative-ai'
+import { GoogleGenerativeAI, type FunctionDeclaration, SchemaType, type Part, type Content, type GenerativeModel } from '@google/generative-ai'
 import {
   type InteractiveElement,
   getPageState,
   getPageText,
+  readUrl,
   clickElement,
   typeText,
   pressKey,
@@ -11,6 +12,7 @@ import {
   formatElementsForLLM,
   launchBrowser,
 } from './browser-actions'
+import { SEARCH_MODEL, thinkingConfigFor } from '../models'
 
 export interface AgentAction {
   tool: string
@@ -28,6 +30,29 @@ export interface AgentStepCallback {
 }
 
 const TOOLS: FunctionDeclaration[] = [
+  {
+    name: 'web_search',
+    description: 'Search the web (Google) and get a short factual answer with source URLs. Fast and cheap — the best first step for any question that needs information from the internet. Does not touch the visible browser.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        query: { type: SchemaType.STRING, description: 'Specific search query. Include names, versions, dates, location when relevant.' },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'read_url',
+    description: 'Read the main text of any URL in a background tab (no screenshot). Use it to verify facts in a source from web_search or to read an article. Long pages are paged — pass offset to continue.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        url: { type: SchemaType.STRING, description: 'The URL to read' },
+        offset: { type: SchemaType.INTEGER, description: 'Character offset for long pages (default 0)' },
+      },
+      required: ['url'],
+    },
+  },
   {
     name: 'click',
     description: 'Click on an interactive element by its index number from the elements list',
@@ -75,7 +100,7 @@ const TOOLS: FunctionDeclaration[] = [
   },
   {
     name: 'navigate',
-    description: 'Navigate to a specific URL',
+    description: 'Navigate the visible browser to a URL (use when you need to interact with the site)',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
@@ -86,10 +111,23 @@ const TOOLS: FunctionDeclaration[] = [
   },
   {
     name: 'get_text',
-    description: 'Get the text content of the current page (useful for reading articles, search results, etc.)',
+    description: 'Get the main text of the current page in the visible browser. Long pages are paged — pass offset to continue.',
     parameters: {
       type: SchemaType.OBJECT,
-      properties: {},
+      properties: {
+        offset: { type: SchemaType.INTEGER, description: 'Character offset for long pages (default 0)' },
+      },
+    },
+  },
+  {
+    name: 'save_note',
+    description: 'Save a key fact you found (name, price, number, date, link). Old page text is dropped from your memory to save space, so save anything you will need for the final answer.',
+    parameters: {
+      type: SchemaType.OBJECT,
+      properties: {
+        note: { type: SchemaType.STRING, description: 'Short fact with its source URL' },
+      },
+      required: ['note'],
     },
   },
   {
@@ -116,54 +154,106 @@ const TOOLS: FunctionDeclaration[] = [
   },
   {
     name: 'done',
-    description: 'Call this when the task is complete. Provide a summary of what was accomplished.',
+    description: 'Call this when the task is complete. Provide the final answer for the user.',
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        summary: { type: SchemaType.STRING, description: 'Summary of what was done and the result' },
+        summary: { type: SchemaType.STRING, description: 'Final answer: concrete results with source links' },
       },
       required: ['summary'],
     },
   },
 ]
 
-const SYSTEM_INSTRUCTION = `You are a browser automation agent. You control a real web browser via tools to accomplish ANY task the user requests.
+// Tools that never change the visible page — no need to send a fresh screenshot after them
+const NO_PAGE_CHANGE = new Set(['web_search', 'read_url', 'get_text', 'save_note'])
 
-CRITICAL: You MUST ALWAYS respond with a tool call. NEVER respond with plain text explaining why you can't do something. You have full browser control — use it.
+const MAX_STEPS = 40
+// Tool results older than this many tool turns get truncated in history
+const KEEP_FULL_TOOL_TURNS = 2
+const OLD_RESULT_CHARS = 600
+const HISTORY_MESSAGES = 10
+const HISTORY_MESSAGE_CHARS = 1500
 
-You can see the current page via a screenshot and a list of interactive elements. Each element has an [index] you can reference in your actions.
+function buildSystemInstruction(): string {
+  const today = new Date().toISOString().slice(0, 10)
+  return `You are a capable web agent. Today is ${today}. You have web search, a page reader and a real browser you control via tools.
 
-## How to work:
-1. Look at the screenshot and elements list to understand what's on the page
-2. Think about the BEST way to accomplish the task — navigate DIRECTLY to the target website when you know it
-3. Call the appropriate tool to take the next action
-4. After each action, you'll receive an updated screenshot and elements list
-5. Continue until the task is complete, then call "done" with a detailed summary
+CRITICAL: ALWAYS respond with a tool call. Never reply with plain text. When finished, call "done".
 
-## IMPORTANT — navigate directly, don't Google:
-- If the user mentions a specific website or service (Grab, Amazon, YouTube, Wikipedia, etc.), navigate DIRECTLY to it (e.g. "navigate" to "grab.com", "amazon.com")
-- Do NOT go to Google to search for well-known websites — go to them directly
-- Only use Google search when you genuinely don't know the URL or need to find something across the web
-- For food delivery: Grab → grab.com, Uber Eats → ubereats.com, etc.
-- For shopping: Amazon → amazon.com, eBay → ebay.com, etc.
+## Pick the cheapest tool that works
+- Information questions (facts, news, prices, docs, comparisons, "what/who/when/how"): use "web_search" first. Then "read_url" on 1–3 of the best sources to verify details. Do NOT open the visible browser for this.
+- Interactive tasks (log in, fill a form, order, book, click through a site): use "navigate" + "click"/"type_text" in the visible browser.
+- Known site → navigate to it directly (amazon.com, youtube.com, grab.com, …). Never search Google for a site's address.
 
-## Important rules:
-- ALWAYS respond with a tool call, never with plain text
-- ONLY use element indices from the LATEST elements list you received — indices change after every page update
-- If a click fails with "element not found", the page has changed. Look at the new screenshot and elements list before trying again
-- After clicking links or submitting forms, use "wait" to let the page load
-- If you need to read page content, use "get_text"
-- If elements aren't visible, try scrolling
-- Be methodical: plan your steps, execute one at a time
-- If something doesn't work, try an alternative approach
-- When done, call "done" with a USEFUL summary for the user: what you found, key results, prices, names, links — real actionable information. Do NOT list your actions (clicked X, typed Y) — the user doesn't care about that. Focus on the OUTCOME.
+## Searching well
+- Write specific queries: names, versions, location, year. For recent things add the current year.
+- If results are thin or off-topic, rephrase (synonyms, English query, narrower terms) instead of repeating the same query.
+- Prefer primary sources (official sites, docs, vendor pages) over aggregators. Cross-check numbers in two sources when it matters.
+- Stop as soon as you have a reliable answer — do not keep browsing "just in case".
 
-## When to ask the user for help:
-- CAPTCHA or bot verification — ask the user to solve it in the browser window, then continue
-- Login or authentication required — ask the user to log in in the browser window, then continue
-- Ambiguous choice — ask which option they prefer
-- Unexpected error or blocker you cannot work around
-Use "ask_user" tool for these cases. After the user responds, continue with the task.`
+## Browser rules
+- Only use element indices from the LATEST elements list — indices change after every page update.
+- If a click fails, look at the new screenshot/elements before retrying. If an approach fails twice, switch approach.
+- Use "get_text" to read the current page; scroll if needed elements are off-screen.
+
+## Memory
+Older screenshots and long tool outputs are removed from your context to save space. Use "save_note" for facts you will need later.
+
+## Final answer ("done")
+- Answer in the user's language.
+- Give the OUTCOME: concrete names, numbers, prices, dates, and source links. No list of your actions.
+- If something could not be confirmed, say so briefly.
+
+## Ask the user (ask_user) when
+CAPTCHA, login required, payment/irreversible confirmation, or a genuinely ambiguous choice.`
+}
+
+async function webSearch(genAI: GoogleGenerativeAI, query: string): Promise<string> {
+  const searchModel = genAI.getGenerativeModel({
+    model: SEARCH_MODEL,
+    // googleSearch isn't in this SDK's types but is passed through to the API as-is
+    tools: [{ googleSearch: {} } as any],
+  })
+  const result = await searchModel.generateContent(
+    `Search the web and answer the query concisely with concrete facts (names, numbers, prices, dates). ` +
+    `Mention which source each key fact came from. Query: ${query}`,
+  )
+  const candidate = result.response.candidates?.[0]
+  const text = candidate?.content?.parts?.map((p) => p.text || '').join('').trim() || 'No answer.'
+  const sources = (candidate?.groundingMetadata?.groundingChunks || [])
+    .map((c: any) => c.web)
+    .filter((w: any) => w?.uri)
+    .slice(0, 6)
+    .map((w: any, i: number) => `${i + 1}. ${w.title || 'source'} — ${w.uri}`)
+  return sources.length > 0 ? `${text.substring(0, 3000)}\n\nSources:\n${sources.join('\n')}` : text.substring(0, 3000)
+}
+
+// Drops screenshots/element lists from all but the latest page state and shortens old tool outputs
+function compactHistory(history: Content[], pageStateIdx: number[], toolResultIdx: number[]) {
+  for (const i of pageStateIdx.slice(0, -1)) {
+    const msg = history[i]
+    if (msg.parts.length > 1 || (msg.parts[0]?.text?.length || 0) > 300) {
+      const header = (msg.parts[0]?.text || '').split('\n\nInteractive elements')[0]
+      msg.parts = [{ text: `${header}\n[old page state removed]` }]
+    }
+  }
+  for (const i of toolResultIdx.slice(0, -KEEP_FULL_TOOL_TURNS)) {
+    for (const part of history[i].parts) {
+      const response = part.functionResponse?.response as { result?: string } | undefined
+      if (response?.result && response.result.length > OLD_RESULT_CHARS) {
+        response.result = response.result.substring(0, OLD_RESULT_CHARS) + '… [truncated — use save_note for facts you need]'
+      }
+    }
+  }
+}
+
+function pageStateParts(prefix: string, state: { url: string; title: string; screenshot: string; elements: InteractiveElement[] }): Part[] {
+  return [
+    { text: `${prefix}\nURL: ${state.url}\nTitle: ${state.title}\n\nInteractive elements:\n${formatElementsForLLM(state.elements)}` },
+    { inlineData: { mimeType: 'image/jpeg', data: state.screenshot } },
+  ]
+}
 
 export async function runAgentLoop(
   apiKey: string,
@@ -176,25 +266,40 @@ export async function runAgentLoop(
 ): Promise<void> {
   const genAI = new GoogleGenerativeAI(apiKey)
 
-  const systemParts = [SYSTEM_INSTRUCTION]
+  let systemInstruction = buildSystemInstruction()
   if (presetSystemInstruction) {
-    systemParts.push('\n\nAdditional context:\n' + presetSystemInstruction)
+    systemInstruction += '\n\nAdditional context:\n' + presetSystemInstruction
   }
 
-  // Enable thinking for models that support it (2.5-flash, 2.5-pro, 3.x — NOT lite)
-  const supportsThinking = /gemini-(2\.5-(flash|pro)|3\.)/.test(model) && !model.includes('lite')
-  const generationConfig = supportsThinking
-    ? { thinkingConfig: { thinkingBudget: 4096 } } as any
-    : undefined
-
-  const geminiModel = genAI.getGenerativeModel({
+  const makeModel = (withConfig: boolean): GenerativeModel => genAI.getGenerativeModel({
     model,
-    systemInstruction: systemParts.join(''),
+    systemInstruction,
     tools: [{ functionDeclarations: TOOLS }],
-    generationConfig,
+    generationConfig: withConfig
+      ? {
+          thinkingConfig: thinkingConfigFor(model, 'low'),
+          // Medium resolution is enough to read screenshots and costs ~half the tokens
+          mediaResolution: 'MEDIA_RESOLUTION_MEDIUM',
+        } as any
+      : undefined,
   })
+  let geminiModel = makeModel(true)
+  let configFallbackUsed = false
 
-  // Keep track of current interactive elements for action execution
+  const generate = async (contents: Content[]) => {
+    try {
+      return await geminiModel.generateContent({ contents })
+    } catch (err: any) {
+      // Some models reject thinking/media options — retry once without them
+      if (!configFallbackUsed && /400|thinking|mediaResolution|Invalid/i.test(err.message || '')) {
+        configFallbackUsed = true
+        geminiModel = makeModel(false)
+        return geminiModel.generateContent({ contents })
+      }
+      throw err
+    }
+  }
+
   let currentElements: InteractiveElement[] = []
 
   callbacks.onThinking('Launching browser...')
@@ -205,8 +310,6 @@ export async function runAgentLoop(
     callbacks.onError('Failed to launch browser: ' + err.message)
     return
   }
-
-  callbacks.onThinking('Analyzing the page...')
 
   let pageState
   try {
@@ -221,65 +324,63 @@ export async function runAgentLoop(
   // Manually managed history — needed because SDK sendMessage() always uses role 'user',
   // but functionResponse requires role 'function'
   const history: Content[] = []
+  const pageStateIdx: number[] = []
+  const toolResultIdx: number[] = []
 
-  // Include prior conversation messages so the agent remembers context across turns
-  if (conversationHistory && conversationHistory.length > 0) {
+  const recent = (conversationHistory || []).slice(-HISTORY_MESSAGES)
+  if (recent.length > 0) {
     history.push({
       role: 'user',
-      parts: [{ text: 'Previous conversation:\n' + conversationHistory.map((m) => `${m.role === 'user' ? 'User' : 'Agent'}: ${m.content}`).join('\n') }],
+      parts: [{ text: 'Previous conversation:\n' + recent.map((m) => `${m.role === 'user' ? 'User' : 'Agent'}: ${m.content.substring(0, HISTORY_MESSAGE_CHARS)}`).join('\n') }],
     })
     history.push({
       role: 'model',
-      parts: [{ text: 'Understood, I have the context from our previous conversation. I will continue from where we left off.' }],
+      parts: [{ text: 'Understood, I have the context from our previous conversation.' }],
     })
   }
 
-  history.push({
-    role: 'user',
-    parts: [
-      { text: `Task: ${task}\n\nCurrent page: ${pageState.url}\nTitle: ${pageState.title}\n\nInteractive elements:\n${formatElementsForLLM(pageState.elements)}` },
-      { inlineData: { mimeType: 'image/png', data: pageState.screenshot } },
-    ],
-  })
+  pageStateIdx.push(history.length)
+  history.push({ role: 'user', parts: pageStateParts(`Task: ${task}\n\nCurrent page:`, pageState) })
 
   const startTime = performance.now()
   let totalPromptTokens = 0
   let totalCandidatesTokens = 0
   let totalRequests = 0
+  let textOnlyStreak = 0
+  const recentCalls: string[] = []
+  const notes: string[] = []
 
-  const MAX_STEPS = 30
+  const logTotals = (label: string) => {
+    const duration = ((performance.now() - startTime) / 1000).toFixed(1)
+    console.log(`[Agent] ${label} | ${totalRequests} requests, ${totalPromptTokens} prompt + ${totalCandidatesTokens} response tokens, ${duration}s`)
+  }
 
   for (let step = 0; step < MAX_STEPS; step++) {
     if (abortSignal.aborted) {
-      const duration = ((performance.now() - startTime) / 1000).toFixed(1)
-      console.log(`[Agent] Total Stats: ${totalRequests} requests, ${totalPromptTokens + totalCandidatesTokens} tokens, ${duration}s total time`)
+      logTotals('Stopped')
       callbacks.onDone('Agent stopped by user.')
       return
     }
 
-    // Call generateContent with full history
+    compactHistory(history, pageStateIdx, toolResultIdx)
+
     let result
     const requestStartTime = performance.now()
     try {
       totalRequests++
-      result = await geminiModel.generateContent({ contents: history })
+      result = await generate(history)
     } catch (err: any) {
       callbacks.onError('LLM error: ' + err.message)
       return
     }
-    const requestDuration = ((performance.now() - requestStartTime) / 1000).toFixed(2)
 
     const usage = result.response.usageMetadata
     if (usage) {
-      const p = usage.promptTokenCount || 0
-      const c = usage.candidatesTokenCount || 0
-      totalPromptTokens += p
-      totalCandidatesTokens += c
+      totalPromptTokens += usage.promptTokenCount || 0
+      totalCandidatesTokens += usage.candidatesTokenCount || 0
       console.log(
-        `[Agent Step ${step + 1}] Request #${totalRequests} | ` +
-        `Tokens: ${p} prompt + ${c} response = ${p + c} | ` +
-        `Accumulated: ${totalPromptTokens + totalCandidatesTokens} | ` +
-        `Time: ${requestDuration}s`
+        `[Agent Step ${step + 1}] ${usage.promptTokenCount} prompt + ${usage.candidatesTokenCount} response tokens, ` +
+        `${((performance.now() - requestStartTime) / 1000).toFixed(2)}s`,
       )
     }
 
@@ -289,27 +390,28 @@ export async function runAgentLoop(
       return
     }
 
-    // Add model response to history
+    // Keep parts as-is: Gemini 3 needs thought signatures echoed back
     history.push({ role: 'model', parts: candidate.content.parts })
 
-    // Check for function calls vs text
     const functionCalls = candidate.content.parts.filter((p) => p.functionCall)
-    const textParts = candidate.content.parts.filter((p) => p.text).map((p) => p.text).join('')
+    const textParts = candidate.content.parts.filter((p) => p.text && !(p as any).thought).map((p) => p.text).join('')
 
     if (functionCalls.length === 0) {
-      // Model responded with text only — retry once, reminding it to use tools
-      if (step < MAX_STEPS - 1) {
-        history.push({
-          role: 'user',
-          parts: [{ text: 'You MUST use a tool call. Do not respond with text. If you need to navigate somewhere, use the "navigate" tool. If the task is complete, call "done". Take action now.' }],
-        })
-        continue
+      textOnlyStreak++
+      // Second text-only reply in a row is almost always the final answer
+      if (textOnlyStreak >= 2 && textParts) {
+        logTotals('Finished with text')
+        callbacks.onDone(textParts)
+        return
       }
-      callbacks.onDone(textParts || 'Agent finished (no more actions).')
-      return
+      history.push({
+        role: 'user',
+        parts: [{ text: 'Use a tool call. If the task is complete, call "done" with the answer.' }],
+      })
+      continue
     }
+    textOnlyStreak = 0
 
-    // Execute each function call
     const functionResponseParts: Part[] = []
 
     for (const part of functionCalls) {
@@ -325,6 +427,14 @@ export async function runAgentLoop(
 
       try {
         switch (call.name) {
+          case 'web_search':
+            callbacks.onThinking(`Searching: ${args.query}`)
+            actionResult = await webSearch(genAI, args.query)
+            break
+          case 'read_url':
+            callbacks.onThinking(`Reading ${args.url}...`)
+            actionResult = await readUrl(args.url, args.offset || 0)
+            break
           case 'click':
             callbacks.onThinking(`Clicking element [${args.index}]...`)
             actionResult = await clickElement(args.index, currentElements)
@@ -347,7 +457,11 @@ export async function runAgentLoop(
             break
           case 'get_text':
             callbacks.onThinking('Reading page content...')
-            actionResult = await getPageText()
+            actionResult = await getPageText(args.offset || 0)
+            break
+          case 'save_note':
+            notes.push(args.note)
+            actionResult = `Saved (${notes.length} notes).`
             break
           case 'wait': {
             const secs = Math.min(Math.max(args.seconds || 2, 1), 5)
@@ -363,8 +477,7 @@ export async function runAgentLoop(
             break
           case 'done':
             callbacks.onAction({ tool: 'done', args, result: args.summary })
-            const finalDuration = ((performance.now() - startTime) / 1000).toFixed(1)
-            console.log(`[Agent] Task Completed | Total Stats: ${totalRequests} requests, ${totalPromptTokens + totalCandidatesTokens} tokens, ${finalDuration}s total time`)
+            logTotals('Task completed')
             callbacks.onDone(args.summary)
             return
           default:
@@ -372,6 +485,13 @@ export async function runAgentLoop(
         }
       } catch (err: any) {
         actionResult = `Error executing ${call.name}: ${err.message}`
+      }
+
+      // Loop guard: the same call 3 times among the last 4 means the agent is stuck
+      const signature = call.name + JSON.stringify(args)
+      recentCalls.push(signature)
+      if (recentCalls.slice(-4).filter((s) => s === signature).length >= 3) {
+        actionResult += '\n\nWARNING: you repeated this exact action 3 times without progress. Change approach: different element or query, web_search, read_url, or ask_user.'
       }
 
       callbacks.onAction({ tool: call.name, args, result: actionResult })
@@ -384,54 +504,43 @@ export async function runAgentLoop(
       })
     }
 
-    // Add function responses with role 'function' (NOT 'user')
+    toolResultIdx.push(history.length)
     history.push({ role: 'function' as any, parts: functionResponseParts })
+
+    if (functionCalls.every((p) => NO_PAGE_CHANGE.has(p.functionCall!.name))) continue
 
     // Wait for page to update — longer for navigation actions, shorter for others
     const lastAction = functionCalls[functionCalls.length - 1]?.functionCall?.name
-    const navActions = ['click', 'navigate', 'press_key']
-    const waitMs = navActions.includes(lastAction || '') ? 1500 : 500
+    const waitMs = ['click', 'navigate', 'press_key'].includes(lastAction || '') ? 1500 : 500
     await new Promise((r) => setTimeout(r, waitMs))
 
     try {
       const newState = await getPageState()
       currentElements = newState.elements
       callbacks.onScreenshot(newState.screenshot)
-      // Add updated page state as a new user message
-      history.push({
-        role: 'user',
-        parts: [
-          { text: `Page updated.\nURL: ${newState.url}\nTitle: ${newState.title}\n\nInteractive elements:\n${formatElementsForLLM(newState.elements)}` },
-          { inlineData: { mimeType: 'image/png', data: newState.screenshot } },
-        ],
-      })
+      pageStateIdx.push(history.length)
+      history.push({ role: 'user', parts: pageStateParts('Page updated.', newState) })
     } catch {
       // Page still loading — model will act on function response alone
     }
   }
 
-  // Reached step limit — ask the model to summarize what it found/did
+  // Reached step limit — ask the model to summarize what it found
   callbacks.onThinking('Summarizing results...')
+  compactHistory(history, pageStateIdx, toolResultIdx)
   history.push({
     role: 'user',
-    parts: [{ text: 'You have reached the maximum number of steps. Call "done" with a useful summary: what concrete results did you find? List specific names, prices, links, or answers. Then briefly note what remains to be done. Focus on VALUE to the user, not on your actions.' }],
+    parts: [{ text: 'Step limit reached. Call "done" now with the concrete results found so far (names, prices, links) and briefly what remains unconfirmed.' }],
   })
+  const notesFallback = notes.length > 0 ? `Reached step limit. Findings so far:\n${notes.map((n) => `- ${n}`).join('\n')}` : ''
   try {
-    const finalResult = await geminiModel.generateContent({ contents: history })
-    const finalCandidate = finalResult.response.candidates?.[0]
-    const finalText = finalCandidate?.content?.parts
-      ?.filter((p) => p.text)
-      .map((p) => p.text)
-      .join('') || ''
-    // Check if the model called done
-    const doneCall = finalCandidate?.content?.parts?.find((p) => p.functionCall?.name === 'done')
-    if (doneCall) {
-      const summary = (doneCall.functionCall!.args as any)?.summary || finalText
-      callbacks.onDone(summary)
-    } else {
-      callbacks.onDone(finalText || 'Reached maximum steps limit. The task may not be fully complete.')
-    }
+    const finalResult = await generate(history)
+    const parts = finalResult.response.candidates?.[0]?.content?.parts || []
+    const doneCall = parts.find((p) => p.functionCall?.name === 'done')
+    const finalText = parts.filter((p) => p.text && !(p as any).thought).map((p) => p.text).join('')
+    callbacks.onDone((doneCall?.functionCall?.args as any)?.summary || finalText || notesFallback || 'Reached maximum steps limit. The task may not be fully complete.')
   } catch {
-    callbacks.onDone('Reached maximum steps limit. The task may not be fully complete.')
+    callbacks.onDone(notesFallback || 'Reached maximum steps limit. The task may not be fully complete.')
   }
+  logTotals('Step limit')
 }

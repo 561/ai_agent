@@ -28,14 +28,19 @@ async function ensureBrowser(): Promise<Page> {
   return page
 }
 
+// Elements beyond this are rarely useful and only bloat the LLM context
+const MAX_ELEMENTS = 120
+const TEXT_PAGE_SIZE = 6000
+
 const INTERACTIVE_SELECTORS = 'a, button, input, textarea, select, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [onclick], [contenteditable="true"]'
 
 async function getInteractiveElements(p: Page) {
-  return p.evaluate((selectors) => {
+  return p.evaluate(([selectors, MAX_ELEMENTS]) => {
     const nodes = document.querySelectorAll(selectors)
     const results: any[] = []
     let index = 0
     for (const el of nodes) {
+      if (results.length >= MAX_ELEMENTS) break
       const rect = el.getBoundingClientRect()
       if (rect.width === 0 || rect.height === 0) continue
       if (rect.bottom < 0 || rect.top > window.innerHeight) continue
@@ -46,15 +51,15 @@ async function getInteractiveElements(p: Page) {
         index: index++,
         tag,
         type: el.getAttribute('type') || undefined,
-        text: (el.textContent || '').trim().substring(0, 100),
+        text: (el.textContent || '').replace(/\s+/g, ' ').trim().substring(0, 80),
         placeholder: el.getAttribute('placeholder') || undefined,
-        href: tag === 'a' ? el.getAttribute('href') : undefined,
+        href: tag === 'a' ? (el.getAttribute('href') || '').substring(0, 120) || undefined : undefined,
         ariaLabel: el.getAttribute('aria-label') || undefined,
         rect: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) },
       })
     }
     return results
-  }, INTERACTIVE_SELECTORS)
+  }, [INTERACTIVE_SELECTORS, MAX_ELEMENTS] as const)
 }
 
 async function findElementByIndex(p: Page, index: number) {
@@ -73,6 +78,40 @@ async function findElementByIndex(p: Page, index: number) {
     }
     return null
   }, [INTERACTIVE_SELECTORS, index] as const)
+}
+
+// Visible text of the main content area, whitespace-collapsed, paged by TEXT_PAGE_SIZE
+async function pageText(p: Page, offset: number): Promise<string> {
+  const text = await p.evaluate(() => {
+    const collect = (root: Element) => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+          const parent = node.parentElement
+          if (!parent) return NodeFilter.FILTER_REJECT
+          if (parent.closest('script, style, noscript, svg, nav, footer, aside, [aria-hidden="true"]')) {
+            return NodeFilter.FILTER_REJECT
+          }
+          const style = window.getComputedStyle(parent)
+          if (style.display === 'none' || style.visibility === 'hidden') return NodeFilter.FILTER_REJECT
+          if ((node.textContent || '').trim().length === 0) return NodeFilter.FILTER_REJECT
+          return NodeFilter.FILTER_ACCEPT
+        },
+      })
+      const texts: string[] = []
+      while (walker.nextNode()) {
+        texts.push(walker.currentNode.textContent!.replace(/\s+/g, ' ').trim())
+      }
+      return texts.join('\n')
+    }
+    if (!document.body) return ''
+    const main = document.querySelector('main, article, [role="main"]')
+    const mainText = main ? collect(main) : ''
+    // Some sites wrap only a fragment in <main> — fall back to the whole body
+    return mainText.length > 500 ? mainText : collect(document.body)
+  })
+  const chunk = text.substring(offset, offset + TEXT_PAGE_SIZE)
+  const rest = text.length - offset - chunk.length
+  return rest > 0 ? `${chunk}\n\n[${rest} more chars — call again with offset=${offset + chunk.length}]` : chunk
 }
 
 export function setupPlaywrightHandlers() {
@@ -101,7 +140,7 @@ export function setupPlaywrightHandlers() {
 
   ipcMain.handle('pw:screenshot', async () => {
     const p = await ensureBrowser()
-    const buffer = await p.screenshot({ type: 'png' })
+    const buffer = await p.screenshot({ type: 'jpeg', quality: 60 })
     return buffer.toString('base64')
   })
 
@@ -113,7 +152,7 @@ export function setupPlaywrightHandlers() {
   ipcMain.handle('pw:get-page-state', async () => {
     const p = await ensureBrowser()
     const [screenshot, elements] = await Promise.all([
-      p.screenshot({ type: 'png' }).then((b) => b.toString('base64')),
+      p.screenshot({ type: 'jpeg', quality: 60 }).then((b) => b.toString('base64')),
       getInteractiveElements(p),
     ])
     return {
@@ -169,30 +208,26 @@ export function setupPlaywrightHandlers() {
     return { success: true }
   })
 
-  ipcMain.handle('pw:get-text', async () => {
+  ipcMain.handle('pw:get-text', async (_e, offset = 0) => {
     const p = await ensureBrowser()
-    const text = await p.evaluate(() => {
-      const body = document.body
-      if (!body) return ''
-      const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, {
-        acceptNode(node) {
-          const parent = node.parentElement
-          if (!parent) return NodeFilter.FILTER_REJECT
-          const tag = parent.tagName.toLowerCase()
-          if (['script', 'style', 'noscript', 'svg'].includes(tag)) return NodeFilter.FILTER_REJECT
-          const style = window.getComputedStyle(parent)
-          if (style.display === 'none' || style.visibility === 'hidden') return NodeFilter.FILTER_REJECT
-          if ((node.textContent || '').trim().length === 0) return NodeFilter.FILTER_REJECT
-          return NodeFilter.FILTER_ACCEPT
-        },
-      })
-      const texts: string[] = []
-      while (walker.nextNode()) {
-        texts.push(walker.currentNode.textContent!.trim())
-      }
-      return texts.join('\n').substring(0, 8000)
-    })
-    return text
+    return pageText(p, offset)
+  })
+
+  // Reads a URL in a background tab so the agent can check sources without
+  // disturbing the visible page or paying for screenshots
+  ipcMain.handle('pw:read-url', async (_e, url: string, offset = 0) => {
+    await ensureBrowser()
+    const tab = await context!.newPage()
+    try {
+      const fullUrl = /^https?:\/\//.test(url) ? url : 'https://' + url
+      await tab.goto(fullUrl, { waitUntil: 'domcontentloaded', timeout: 15000 })
+      await tab.waitForLoadState('networkidle', { timeout: 3000 }).catch(() => {})
+      return `URL: ${tab.url()}\nTitle: ${await tab.title()}\n\n${await pageText(tab, offset)}`
+    } catch (err: any) {
+      return `Error reading ${url}: ${err.message}`
+    } finally {
+      await tab.close().catch(() => {})
+    }
   })
 
   ipcMain.handle('pw:go-back', async () => {

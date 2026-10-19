@@ -72,8 +72,12 @@ export async function navigateTo(url: string): Promise<string> {
   return `Navigated to ${result.url}`
 }
 
-export async function getPageText(): Promise<string> {
-  return ipcRenderer.invoke('pw:get-text')
+export async function getPageText(offset = 0): Promise<string> {
+  return ipcRenderer.invoke('pw:get-text', offset)
+}
+
+export async function readUrl(url: string, offset = 0): Promise<string> {
+  return ipcRenderer.invoke('pw:read-url', url, offset)
 }
 
 export async function goBack(): Promise<{ url: string; title: string }> {

@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid'
 import type { ChatMessage, Conversation, AppSettings, Preset } from '../../shared/types'
 import { runAgentLoop, type AgentAction } from '../lib/agent/agent-loop'
 import { loadConversations, saveConversations } from '../lib/storage'
+import { DEFAULT_AGENT_MODEL, resolveModel } from '../lib/models'
 
 export function useAgentChat(settings: AppSettings, presets: Preset[]) {
   const [conversations, setConversations] = useState<Conversation[]>(loadConversations)
@@ -93,7 +94,7 @@ export function useAgentChat(settings: AppSettings, presets: Preset[]) {
       try {
         await runAgentLoop(
           settings.apiKeys.gemini,
-          preset?.llmModel || (preset?.type === 'agent' ? 'gemini-2.5-flash' : settings.geminiModel) || 'gemini-2.5-flash-lite',
+          resolveModel(preset?.llmModel, DEFAULT_AGENT_MODEL),
           content,
           {
             onThinking: (text) => {
