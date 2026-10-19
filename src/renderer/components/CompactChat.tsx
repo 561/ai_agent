@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { MessageBubble } from './MessageBubble'
+import { ContextRing } from './ContextRing'
+import { ImagePreview } from './ImagePreview'
 import { useVisibleMessages } from '../hooks/useVisibleMessages'
+import { useImageAttachments } from '../hooks/useImageAttachments'
 import { useI18n } from '../lib/i18n'
 import type { Conversation, ImageAttachment } from '../../shared/types'
 
@@ -18,6 +21,8 @@ export function CompactChat({ conversation, isStreaming, streamingText, onSend, 
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const { images, handlePaste, handleDrop, handleFileSelect, removeImage, clearImages } = useImageAttachments()
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -29,9 +34,10 @@ export function CompactChat({ conversation, isStreaming, streamingText, onSend, 
 
   const handleSubmit = () => {
     const trimmed = input.trim()
-    if (!trimmed || isStreaming) return
-    onSend(trimmed, [])
+    if ((!trimmed && images.length === 0) || isStreaming) return
+    onSend(trimmed, images)
     setInput('')
+    clearImages()
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -45,7 +51,7 @@ export function CompactChat({ conversation, isStreaming, streamingText, onSend, 
   const { visible, hiddenCount, showMore } = useVisibleMessages(messages, conversation?.id)
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col h-full min-h-0" onDragOver={(e) => e.preventDefault()} onDrop={handleDrop}>
       {/* Messages */}
       <div className="flex-1 overflow-y-auto" style={{ padding: 'var(--padding-sm)' }}>
         {messages.length === 0 && !isStreaming && (
@@ -80,19 +86,36 @@ export function CompactChat({ conversation, isStreaming, streamingText, onSend, 
         <div ref={messagesEndRef} />
       </div>
 
+      <ImagePreview images={images} onRemove={removeImage} />
+
       {/* Input */}
       <div className="border-t border-surface-200 dark:border-surface-700 flex-shrink-0" style={{ padding: 'var(--padding-xs)' }}>
         <div className="flex items-end" style={{ gap: 'var(--padding-xs)' }}>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex-shrink-0 rounded-lg text-gray-500 hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+            style={{ padding: 'var(--padding-sm)' }}
+            title={t('attachImage')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <circle cx="8.5" cy="8.5" r="1.5" />
+              <path d="M21 15l-5-5L5 21" />
+            </svg>
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileSelect} />
           <textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder="Message agent..."
             rows={1}
             className="flex-1 resize-none bg-surface-100 dark:bg-surface-800 rounded-lg text-xs outline-none focus:ring-1 focus:ring-blue-500 dark:text-white max-h-20 overflow-y-auto"
             style={{ minHeight: '30px', padding: 'var(--padding-sm) var(--padding)' }}
           />
+          <ContextRing tokens={conversation?.contextTokens} />
           {isStreaming ? (
             <button
               onClick={onStop}
@@ -107,7 +130,7 @@ export function CompactChat({ conversation, isStreaming, streamingText, onSend, 
           ) : (
             <button
               onClick={handleSubmit}
-              disabled={!input.trim()}
+              disabled={!input.trim() && images.length === 0}
               className="flex-shrink-0 rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               style={{ padding: 'var(--padding-sm)' }}
               title="Send"

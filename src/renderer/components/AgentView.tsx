@@ -1,6 +1,6 @@
 import React from 'react'
 import { CompactChat } from './CompactChat'
-import type { Conversation, Preset } from '../../shared/types'
+import type { Conversation, Preset, ImageAttachment } from '../../shared/types'
 import { useI18n } from '../lib/i18n'
 
 interface Props {
@@ -8,7 +8,7 @@ interface Props {
   isRunning: boolean
   isWaitingForUser: boolean
   statusText: string
-  onSendTask: (content: string) => void
+  onSendTask: (content: string, images: ImageAttachment[]) => void
   onRespondToAgent: (answer: string) => void
   onStop: () => void
   focusSignal?: number
@@ -48,7 +48,7 @@ export function AgentView({ conversation, isRunning, isWaitingForUser, statusTex
           conversation={conversation}
           isStreaming={isRunning && !isWaitingForUser}
           streamingText=""
-          onSend={(content) => isWaitingForUser ? onRespondToAgent(content) : onSendTask(content)}
+          onSend={(content, images) => isWaitingForUser ? onRespondToAgent(content) : onSendTask(content, images)}
           onStop={onStop}
           focusSignal={focusSignal}
         />

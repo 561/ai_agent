@@ -6,6 +6,7 @@ export interface LLMProviderInterface {
     messages: ChatMessage[],
     systemInstruction: string,
     onChunk: (text: string) => void,
+    onUsage?: (tokens: number) => void,
   ): Promise<string>
   isConfigured(): boolean
 }

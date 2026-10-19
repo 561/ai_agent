@@ -111,6 +111,7 @@ export function useChat(settings: AppSettings, presets?: Preset[]) {
         const conv = conversations.find((c) => c.id === convId)
         const allMessages = contextWindow([...(conv?.messages || []), userMessage])
 
+        let contextTokens: number | undefined
         const fullText = await provider.sendMessage(
           allMessages,
           systemInstruction,
@@ -119,6 +120,7 @@ export function useChat(settings: AppSettings, presets?: Preset[]) {
               setStreamingText(text)
             }
           },
+          (tokens) => { contextTokens = tokens },
         )
 
         const assistantMessage: ChatMessage = {
@@ -133,7 +135,7 @@ export function useChat(settings: AppSettings, presets?: Preset[]) {
             c.id === convId
               ? { ...c, messages: [...c.messages, userMessage, assistantMessage].filter(
                   (m, i, arr) => arr.findIndex((x) => x.id === m.id) === i,
-                ), updatedAt: Date.now() }
+                ), contextTokens: contextTokens ?? c.contextTokens, updatedAt: Date.now() }
               : c,
           )
           return saveConversations(next)

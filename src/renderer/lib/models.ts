@@ -32,6 +32,9 @@ export function resolveModel(model: string | undefined, fallback: string): strin
   return RETIRED_MODELS[model] || model
 }
 
+// All current Gemini text models accept 1M input tokens
+export const GEMINI_CONTEXT_LIMIT = 1_048_576
+
 // Gemini 3+ uses thinkingLevel; 2.5 uses thinkingBudget (lite has thinking off by default)
 export function thinkingConfigFor(model: string, level: 'low' | 'high' = 'low'): Record<string, unknown> | undefined {
   if (/^gemini-(3|4)/.test(model)) return { thinkingLevel: level }

@@ -37,6 +37,8 @@ export interface Conversation {
   id: string
   presetId: string
   messages: ChatMessage[]
+  // Tokens the latest model request occupied (prompt + response)
+  contextTokens?: number
   createdAt: number
   updatedAt: number
 }

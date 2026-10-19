@@ -1,6 +1,8 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { MessageBubble } from './MessageBubble'
+import { ContextRing } from './ContextRing'
 import { useVisibleMessages } from '../hooks/useVisibleMessages'
+import { useImageAttachments } from '../hooks/useImageAttachments'
 import { ImagePreview } from './ImagePreview'
 import type { ChatMessage, ImageAttachment, Conversation } from '../../shared/types'
 import { useI18n } from '../lib/i18n'
@@ -18,7 +20,7 @@ interface Props {
 export function Chat({ conversation, isStreaming, streamingText, onSend, onStop, groqApiKey, focusSignal }: Props) {
   const { t } = useI18n()
   const [input, setInput] = useState('')
-  const [images, setImages] = useState<ImageAttachment[]>([])
+  const { images, handlePaste, handleDrop, handleFileSelect, removeImage, clearImages } = useImageAttachments()
   const [isRecording, setIsRecording] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -43,7 +45,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
 
     onSend(trimmed, images)
     setInput('')
-    setImages([])
+    clearImages()
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -52,43 +54,6 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
       handleSubmit()
     }
   }
-
-  const handlePaste = useCallback((e: React.ClipboardEvent) => {
-    const items = e.clipboardData.items
-    for (const item of items) {
-      if (item.type.startsWith('image/')) {
-        e.preventDefault()
-        const file = item.getAsFile()
-        if (!file) continue
-        const reader = new FileReader()
-        reader.onload = () => {
-          const base64 = (reader.result as string).split(',')[1]
-          setImages((prev) => [
-            ...prev,
-            { data: base64, mimeType: item.type, name: file.name || 'pasted-image' },
-          ])
-        }
-        reader.readAsDataURL(file)
-      }
-    }
-  }, [])
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    for (const file of e.dataTransfer.files) {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader()
-        reader.onload = () => {
-          const base64 = (reader.result as string).split(',')[1]
-          setImages((prev) => [
-            ...prev,
-            { data: base64, mimeType: file.type, name: file.name },
-          ])
-        }
-        reader.readAsDataURL(file)
-      }
-    }
-  }, [])
 
   const handleMicClick = async () => {
     if (isRecording) {
@@ -151,25 +116,6 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
     setIsRecording(true)
   }
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files) return
-    for (const file of files) {
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader()
-        reader.onload = () => {
-          const base64 = (reader.result as string).split(',')[1]
-          setImages((prev) => [
-            ...prev,
-            { data: base64, mimeType: file.type, name: file.name },
-          ])
-        }
-        reader.readAsDataURL(file)
-      }
-    }
-    e.target.value = ''
-  }
-
   const messages = conversation?.messages || []
   const { visible, hiddenCount, showMore } = useVisibleMessages(messages, conversation?.id)
 
@@ -214,7 +160,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
       </div>
 
       {/* Image preview */}
-      <ImagePreview images={images} onRemove={(i) => setImages((prev) => prev.filter((_, idx) => idx !== i))} />
+      <ImagePreview images={images} onRemove={removeImage} />
 
       {/* Input */}
       <div className="border-t border-surface-200 dark:border-surface-700" style={{ padding: '  var(--padding-sm)' }}>
@@ -277,6 +223,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
               </svg>
             )}
           </button>
+          <ContextRing tokens={conversation?.contextTokens} />
           {isStreaming ? (
             <button
               onClick={onStop}

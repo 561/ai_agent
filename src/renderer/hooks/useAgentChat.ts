@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { v4 as uuidv4 } from 'uuid'
-import type { ChatMessage, Conversation, AppSettings, Preset } from '../../shared/types'
+import type { ChatMessage, Conversation, AppSettings, Preset, ImageAttachment } from '../../shared/types'
 import { runAgentLoop, type AgentAction } from '../lib/agent/agent-loop'
 import { loadAgentConversations, saveConversations, AGENT_CONVERSATIONS_KEY } from '../lib/storage'
 import { DEFAULT_AGENT_MODEL, resolveModel } from '../lib/models'
@@ -64,7 +64,7 @@ export function useAgentChat(settings: AppSettings, presets: Preset[]) {
   }, [settings.telegram])
 
   const sendTask = useCallback(
-    async (content: string, conversationId?: string) => {
+    async (content: string, conversationId?: string, images: ImageAttachment[] = []) => {
       const convId = conversationId || activeConversationId
       if (!convId) {
         console.error('[Agent] No conversation ID')
@@ -75,6 +75,7 @@ export function useAgentChat(settings: AppSettings, presets: Preset[]) {
         id: uuidv4(),
         role: 'user',
         content,
+        images: images.length > 0 ? images : undefined,
         timestamp: Date.now(),
       }
       addMessage(convId, userMsg)
@@ -139,10 +140,17 @@ export function useAgentChat(settings: AppSettings, presets: Preset[]) {
               setStatusText('')
             },
             onScreenshot: () => {},
+            onUsage: (tokens) => {
+              setConversations((prev) => {
+                const next = prev.map((c) => (c.id === convId ? { ...c, contextTokens: tokens } : c))
+                return saveConversations(next, AGENT_CONVERSATIONS_KEY)
+              })
+            },
           },
           abortRef.current,
           preset?.systemInstruction,
           priorMessages,
+          images,
         )
       } catch (err: any) {
         const errMsg: ChatMessage = {

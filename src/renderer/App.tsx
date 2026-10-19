@@ -8,6 +8,7 @@ import { PresetEditor } from './components/PresetEditor'
 import { useSettings, usePresets } from './hooks/useSettings'
 import { useChat } from './hooks/useChat'
 import { useAgentChat } from './hooks/useAgentChat'
+import type { ImageAttachment } from '../shared/types'
 import { I18nContext, getTranslator } from './lib/i18n'
 
 type View = 'chat' | 'settings' | 'presets'
@@ -224,12 +225,12 @@ export function App() {
     sendMessage(content, images, systemInstruction, convId)
   }
 
-  const handleAgentSend = (content: string) => {
+  const handleAgentSend = (content: string, images: ImageAttachment[]) => {
     let convId = activeAgentConversationId
     if (!convId) {
       convId = startAgentConversation(activePresetId)
     }
-    sendTask(content, convId)
+    sendTask(content, convId, images)
   }
 
   // Sync windowMode changes to main process

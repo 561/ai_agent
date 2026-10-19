@@ -20,6 +20,7 @@ export class GeminiProvider implements LLMProviderInterface {
     messages: ChatMessage[],
     systemInstruction: string,
     onChunk: (text: string) => void,
+    onUsage?: (tokens: number) => void,
   ): Promise<string> {
     const genAI = new GoogleGenerativeAI(this.apiKey)
     const model = genAI.getGenerativeModel({
@@ -43,6 +44,9 @@ export class GeminiProvider implements LLMProviderInterface {
       fullText += text
       onChunk(fullText)
     }
+
+    const usage = (await result.response).usageMetadata
+    if (usage) onUsage?.((usage.promptTokenCount || 0) + (usage.candidatesTokenCount || 0))
 
     return fullText
   }

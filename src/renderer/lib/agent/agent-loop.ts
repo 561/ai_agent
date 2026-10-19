@@ -13,6 +13,7 @@ import {
   launchBrowser,
 } from './browser-actions'
 import { SEARCH_MODEL, thinkingConfigFor } from '../models'
+import type { ImageAttachment } from '../../../shared/types'
 
 export interface AgentAction {
   tool: string
@@ -25,6 +26,8 @@ export interface AgentStepCallback {
   onAction: (action: AgentAction) => void
   onAskUser: (question: string) => Promise<string>
   onScreenshot: (base64: string) => void
+  // Tokens the latest request occupied (prompt + response)
+  onUsage: (tokens: number) => void
   onDone: (summary: string) => void
   onError: (error: string) => void
 }
@@ -229,11 +232,14 @@ async function webSearch(genAI: GoogleGenerativeAI, query: string): Promise<stri
   return sources.length > 0 ? `${text.substring(0, 3000)}\n\nSources:\n${sources.join('\n')}` : text.substring(0, 3000)
 }
 
+// Screenshot parts are tracked by identity so images the user attached are never dropped
+const screenshotParts = new WeakSet<Part>()
+
 // Drops screenshots/element lists from all but the latest page state and shortens old tool outputs
 function compactHistory(history: Content[], pageStateIdx: number[], toolResultIdx: number[]) {
   for (const i of pageStateIdx.slice(0, -1)) {
     history[i].parts = history[i].parts.flatMap((p): Part[] => {
-      if (p.inlineData) return []
+      if (screenshotParts.has(p)) return []
       if (p.text?.includes('\n\nInteractive elements')) {
         return [{ text: `${p.text.split('\n\nInteractive elements')[0]}\n[old page state removed]` }]
       }
@@ -251,9 +257,11 @@ function compactHistory(history: Content[], pageStateIdx: number[], toolResultId
 }
 
 function pageStateParts(prefix: string, state: { url: string; title: string; screenshot: string; elements: InteractiveElement[] }): Part[] {
+  const screenshot: Part = { inlineData: { mimeType: 'image/jpeg', data: state.screenshot } }
+  screenshotParts.add(screenshot)
   return [
     { text: `${prefix}\nURL: ${state.url}\nTitle: ${state.title}\n\nInteractive elements:\n${formatElementsForLLM(state.elements)}` },
-    { inlineData: { mimeType: 'image/jpeg', data: state.screenshot } },
+    screenshot,
   ]
 }
 
@@ -265,6 +273,7 @@ export async function runAgentLoop(
   abortSignal: { aborted: boolean },
   presetSystemInstruction?: string,
   conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
+  images: ImageAttachment[] = [],
 ): Promise<void> {
   const genAI = new GoogleGenerativeAI(apiKey)
 
@@ -343,7 +352,9 @@ export async function runAgentLoop(
   }
 
   pageStateIdx.push(history.length)
-  history.push({ role: 'user', parts: pageStateParts(`Task: ${task}\n\nCurrent page:`, pageState) })
+  const taskImages: Part[] = images.map((img) => ({ inlineData: { mimeType: img.mimeType, data: img.data } }))
+  const imageNote = images.length > 0 ? `\n(${images.length} image(s) from the user attached below the page screenshot)` : ''
+  history.push({ role: 'user', parts: [...pageStateParts(`Task: ${task}${imageNote}\n\nCurrent page:`, pageState), ...taskImages] })
 
   const startTime = performance.now()
   let totalPromptTokens = 0
@@ -381,6 +392,7 @@ export async function runAgentLoop(
     if (usage) {
       totalPromptTokens += usage.promptTokenCount || 0
       totalCandidatesTokens += usage.candidatesTokenCount || 0
+      callbacks.onUsage((usage.promptTokenCount || 0) + (usage.candidatesTokenCount || 0))
       console.log(
         `[Agent Step ${step + 1}] ${usage.promptTokenCount} prompt + ${usage.candidatesTokenCount} response tokens, ` +
         `${((performance.now() - requestStartTime) / 1000).toFixed(2)}s`,

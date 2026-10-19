@@ -50,6 +50,8 @@ const translations = {
     // Chat
     startTyping: 'Start typing to begin a conversation',
     showEarlier: 'Show earlier messages',
+    context: 'Context',
+    tokens: 'tokens',
     typeMessage: 'Type a message... (Shift+Enter for new line)',
     voiceInputRequiresKey: 'Voice input requires a Groq API key (free).\nGet one at console.groq.com and add it in Settings.',
     micDenied: 'Microphone access denied.',
@@ -139,6 +141,8 @@ const translations = {
 
     startTyping: 'Начните вводить сообщение',
     showEarlier: 'Показать предыдущие',
+    context: 'Контекст',
+    tokens: 'токенов',
     typeMessage: 'Введите сообщение... (Shift+Enter — новая строка)',
     voiceInputRequiresKey: 'Для голосового ввода нужен ключ Groq API (бесплатно).\nПолучите на console.groq.com и добавьте в Настройках.',
     micDenied: 'Доступ к микрофону запрещён.',
