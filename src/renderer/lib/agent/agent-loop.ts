@@ -232,11 +232,13 @@ async function webSearch(genAI: GoogleGenerativeAI, query: string): Promise<stri
 // Drops screenshots/element lists from all but the latest page state and shortens old tool outputs
 function compactHistory(history: Content[], pageStateIdx: number[], toolResultIdx: number[]) {
   for (const i of pageStateIdx.slice(0, -1)) {
-    const msg = history[i]
-    if (msg.parts.length > 1 || (msg.parts[0]?.text?.length || 0) > 300) {
-      const header = (msg.parts[0]?.text || '').split('\n\nInteractive elements')[0]
-      msg.parts = [{ text: `${header}\n[old page state removed]` }]
-    }
+    history[i].parts = history[i].parts.flatMap((p): Part[] => {
+      if (p.inlineData) return []
+      if (p.text?.includes('\n\nInteractive elements')) {
+        return [{ text: `${p.text.split('\n\nInteractive elements')[0]}\n[old page state removed]` }]
+      }
+      return [p]
+    })
   }
   for (const i of toolResultIdx.slice(0, -KEEP_FULL_TOOL_TURNS)) {
     for (const part of history[i].parts) {
@@ -321,8 +323,9 @@ export async function runAgentLoop(
   currentElements = pageState.elements
   callbacks.onScreenshot(pageState.screenshot)
 
-  // Manually managed history — needed because SDK sendMessage() always uses role 'user',
-  // but functionResponse requires role 'function'
+  // Manually managed history so old screenshots and tool output can be compacted.
+  // Tool results go in a 'user' turn (current Gemini models reject role 'function'),
+  // together with the fresh page state to keep user/model turns alternating.
   const history: Content[] = []
   const pageStateIdx: number[] = []
   const toolResultIdx: number[] = []
@@ -505,7 +508,8 @@ export async function runAgentLoop(
     }
 
     toolResultIdx.push(history.length)
-    history.push({ role: 'function' as any, parts: functionResponseParts })
+    const toolTurn: Content = { role: 'user', parts: functionResponseParts }
+    history.push(toolTurn)
 
     if (functionCalls.every((p) => NO_PAGE_CHANGE.has(p.functionCall!.name))) continue
 
@@ -518,8 +522,8 @@ export async function runAgentLoop(
       const newState = await getPageState()
       currentElements = newState.elements
       callbacks.onScreenshot(newState.screenshot)
-      pageStateIdx.push(history.length)
-      history.push({ role: 'user', parts: pageStateParts('Page updated.', newState) })
+      pageStateIdx.push(history.length - 1)
+      toolTurn.parts.push(...pageStateParts('Page updated.', newState))
     } catch {
       // Page still loading — model will act on function response alone
     }
@@ -528,10 +532,10 @@ export async function runAgentLoop(
   // Reached step limit — ask the model to summarize what it found
   callbacks.onThinking('Summarizing results...')
   compactHistory(history, pageStateIdx, toolResultIdx)
-  history.push({
-    role: 'user',
-    parts: [{ text: 'Step limit reached. Call "done" now with the concrete results found so far (names, prices, links) and briefly what remains unconfirmed.' }],
-  })
+  const finalPrompt: Part = { text: 'Step limit reached. Call "done" now with the concrete results found so far (names, prices, links) and briefly what remains unconfirmed.' }
+  const lastTurn = history[history.length - 1]
+  if (lastTurn.role === 'user') lastTurn.parts.push(finalPrompt)
+  else history.push({ role: 'user', parts: [finalPrompt] })
   const notesFallback = notes.length > 0 ? `Reached step limit. Findings so far:\n${notes.map((n) => `- ${n}`).join('\n')}` : ''
   try {
     const finalResult = await generate(history)
