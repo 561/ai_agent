@@ -17,12 +17,20 @@ async function ensureBrowser(): Promise<Page> {
   }
 
   // Persistent context keeps cookies, logins, localStorage between sessions
-  context = await chromium.launchPersistentContext(getProfilePath(), {
+  const options = {
     headless: false,
     args: ['--no-sandbox', '--disable-blink-features=AutomationControlled'],
     viewport: { width: 1280, height: 800 },
-    userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  })
+  }
+  try {
+    // System Chrome first: Playwright can't download its Chromium on every distro
+    context = await chromium.launchPersistentContext(getProfilePath(), { ...options, channel: 'chrome' })
+  } catch {
+    context = await chromium.launchPersistentContext(getProfilePath(), {
+      ...options,
+      userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    })
+  }
   page = context.pages()[0] || await context.newPage()
   await page.goto('https://www.google.com', { waitUntil: 'domcontentloaded', timeout: 10000 }).catch(() => {})
   return page
