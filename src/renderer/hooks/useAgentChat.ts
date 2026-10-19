@@ -84,7 +84,7 @@ export function useAgentChat(settings: AppSettings, presets: Preset[]) {
       const preset = presets.find((p) => p.id === conv?.presetId)
       const priorMessages = (conv?.messages || [])
         .filter((m) => m.role === 'user' || m.role === 'assistant')
-        .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+        .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content, images: m.images }))
 
       setIsRunning(true)
       setStatusText('Starting agent...')

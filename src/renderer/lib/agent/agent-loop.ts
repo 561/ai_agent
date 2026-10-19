@@ -175,8 +175,10 @@ const MAX_STEPS = 40
 // Tool results older than this many tool turns get truncated in history
 const KEEP_FULL_TOOL_TURNS = 2
 const OLD_RESULT_CHARS = 600
-const HISTORY_MESSAGES = 10
-const HISTORY_MESSAGE_CHARS = 1500
+const HISTORY_MESSAGES = 20
+const HISTORY_MESSAGE_CHARS = 6000
+// Images from earlier user messages that are re-attached to the history
+const HISTORY_IMAGES = 4
 
 function buildSystemInstruction(): string {
   const today = new Date().toISOString().slice(0, 10)
@@ -272,7 +274,7 @@ export async function runAgentLoop(
   callbacks: AgentStepCallback,
   abortSignal: { aborted: boolean },
   presetSystemInstruction?: string,
-  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>,
+  conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string; images?: ImageAttachment[] }>,
   images: ImageAttachment[] = [],
 ): Promise<void> {
   const genAI = new GoogleGenerativeAI(apiKey)
@@ -341,9 +343,16 @@ export async function runAgentLoop(
 
   const recent = (conversationHistory || []).slice(-HISTORY_MESSAGES)
   if (recent.length > 0) {
+    const oldImages: Part[] = recent
+      .flatMap((m) => m.images || [])
+      .slice(-HISTORY_IMAGES)
+      .map((img) => ({ inlineData: { mimeType: img.mimeType, data: img.data } }))
     history.push({
       role: 'user',
-      parts: [{ text: 'Previous conversation:\n' + recent.map((m) => `${m.role === 'user' ? 'User' : 'Agent'}: ${m.content.substring(0, HISTORY_MESSAGE_CHARS)}`).join('\n') }],
+      parts: [
+        { text: 'Previous conversation:\n' + recent.map((m) => `${m.role === 'user' ? 'User' : 'Agent'}: ${m.content.substring(0, HISTORY_MESSAGE_CHARS)}${m.images?.length ? ` [${m.images.length} image(s)]` : ''}`).join('\n') },
+        ...(oldImages.length > 0 ? [{ text: `(the last ${oldImages.length} image(s) from the earlier messages follow)` }, ...oldImages] : []),
+      ],
     })
     history.push({
       role: 'model',
@@ -360,6 +369,7 @@ export async function runAgentLoop(
   let totalPromptTokens = 0
   let totalCandidatesTokens = 0
   let totalRequests = 0
+  let peakTokens = 0
   let textOnlyStreak = 0
   const recentCalls: string[] = []
   const notes: string[] = []
@@ -392,7 +402,9 @@ export async function runAgentLoop(
     if (usage) {
       totalPromptTokens += usage.promptTokenCount || 0
       totalCandidatesTokens += usage.candidatesTokenCount || 0
-      callbacks.onUsage((usage.promptTokenCount || 0) + (usage.candidatesTokenCount || 0))
+      // Peak of the run, not the last step: later steps can be much smaller than the biggest request
+      peakTokens = Math.max(peakTokens, (usage.promptTokenCount || 0) + (usage.candidatesTokenCount || 0))
+      callbacks.onUsage(peakTokens)
       console.log(
         `[Agent Step ${step + 1}] ${usage.promptTokenCount} prompt + ${usage.candidatesTokenCount} response tokens, ` +
         `${((performance.now() - requestStartTime) / 1000).toFixed(2)}s`,
