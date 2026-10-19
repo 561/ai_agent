@@ -1,0 +1,3 @@
+#!/bin/bash
+chown root "/opt/ai-agent/chrome-sandbox"
+chmod 4755 "/opt/ai-agent/chrome-sandbox"
