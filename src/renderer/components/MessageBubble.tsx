@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, memo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
@@ -8,7 +8,8 @@ interface Props {
   message: ChatMessage
 }
 
-export function MessageBubble({ message }: Props) {
+// Memoized: otherwise every streaming chunk re-parses markdown of the whole visible history
+export const MessageBubble = memo(function MessageBubble({ message }: Props) {
   const isUser = message.role === 'user'
   const [copiedText, setCopiedText] = useState<string | null>(null)
 
@@ -79,4 +80,4 @@ export function MessageBubble({ message }: Props) {
       </div>
     </div>
   )
-}
+})

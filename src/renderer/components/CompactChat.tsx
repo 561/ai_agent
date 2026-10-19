@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { MessageBubble } from './MessageBubble'
+import { useVisibleMessages } from '../hooks/useVisibleMessages'
+import { useI18n } from '../lib/i18n'
 import type { Conversation, ImageAttachment } from '../../shared/types'
 
 interface Props {
@@ -12,6 +14,7 @@ interface Props {
 }
 
 export function CompactChat({ conversation, isStreaming, streamingText, onSend, onStop, focusSignal }: Props) {
+  const { t } = useI18n()
   const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -39,6 +42,7 @@ export function CompactChat({ conversation, isStreaming, streamingText, onSend, 
   }
 
   const messages = conversation?.messages || []
+  const { visible, hiddenCount, showMore } = useVisibleMessages(messages, conversation?.id)
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -49,7 +53,18 @@ export function CompactChat({ conversation, isStreaming, streamingText, onSend, 
             Send a message to the agent...
           </div>
         )}
-        {messages.map((msg) => (
+        {hiddenCount > 0 && (
+          <div className="flex justify-center" style={{ marginBottom: 'var(--padding)' }}>
+            <button
+              onClick={showMore}
+              className="text-xs text-gray-400 hover:text-gray-200 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+              style={{ padding: 'var(--padding-xs) var(--padding)' }}
+            >
+              {t('showEarlier')} ({hiddenCount})
+            </button>
+          </div>
+        )}
+        {visible.map((msg) => (
           <MessageBubble key={msg.id} message={msg} />
         ))}
         {isStreaming && streamingText && (

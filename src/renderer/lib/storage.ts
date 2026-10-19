@@ -50,16 +50,43 @@ export function saveSettings(settings: AppSettings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
 }
 
-export function loadConversations(): Conversation[] {
+// Chat and agent hooks each keep their own list — sharing one key made them overwrite each other
+export const AGENT_CONVERSATIONS_KEY = 'ai-agent-agent-conversations'
+
+// Older messages are dropped and old images stripped so a never-reset chat doesn't grow forever
+const MAX_STORED_MESSAGES = 200
+const KEEP_IMAGES_LAST = 10
+
+function pruneConversation(conv: Conversation): Conversation {
+  let messages = conv.messages.length > MAX_STORED_MESSAGES ? conv.messages.slice(-MAX_STORED_MESSAGES) : conv.messages
+  const imageCutoff = messages.length - KEEP_IMAGES_LAST
+  if (messages.some((m, i) => i < imageCutoff && m.images)) {
+    messages = messages.map((m, i) => (i < imageCutoff && m.images ? { ...m, images: undefined } : m))
+  }
+  return messages === conv.messages ? conv : { ...conv, messages }
+}
+
+export function loadConversations(key = CONVERSATIONS_KEY): Conversation[] {
   try {
-    const stored = localStorage.getItem(CONVERSATIONS_KEY)
+    const stored = localStorage.getItem(key)
     if (stored) return JSON.parse(stored)
   } catch {}
   return []
 }
 
-export function saveConversations(conversations: Conversation[]) {
-  localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations))
+// One-time split of the old shared list
+export function loadAgentConversations(agentPresetIds: Set<string>): Conversation[] {
+  if (localStorage.getItem(AGENT_CONVERSATIONS_KEY) !== null) return loadConversations(AGENT_CONVERSATIONS_KEY)
+  const migrated = loadConversations().filter((c) => agentPresetIds.has(c.presetId))
+  localStorage.setItem(AGENT_CONVERSATIONS_KEY, JSON.stringify(migrated))
+  return migrated
+}
+
+// Returns the pruned list — keep it in state so memory stays bounded too
+export function saveConversations(conversations: Conversation[], key = CONVERSATIONS_KEY): Conversation[] {
+  const pruned = conversations.map(pruneConversation)
+  localStorage.setItem(key, JSON.stringify(pruned))
+  return pruned
 }
 
 export function loadPresets(): Preset[] | null {

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { MessageBubble } from './MessageBubble'
+import { useVisibleMessages } from '../hooks/useVisibleMessages'
 import { ImagePreview } from './ImagePreview'
 import type { ChatMessage, ImageAttachment, Conversation } from '../../shared/types'
 import { useI18n } from '../lib/i18n'
@@ -170,6 +171,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
   }
 
   const messages = conversation?.messages || []
+  const { visible, hiddenCount, showMore } = useVisibleMessages(messages, conversation?.id)
 
   return (
     <div
@@ -184,7 +186,18 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
             {t('startTyping')}
           </div>
         )}
-        {messages.map((msg) => (
+        {hiddenCount > 0 && (
+          <div className="flex justify-center" style={{ marginBottom: 'var(--padding)' }}>
+            <button
+              onClick={showMore}
+              className="text-xs text-gray-400 hover:text-gray-200 rounded-lg hover:bg-surface-200 dark:hover:bg-surface-700 transition-colors"
+              style={{ padding: 'var(--padding-xs) var(--padding)' }}
+            >
+              {t('showEarlier')} ({hiddenCount})
+            </button>
+          </div>
+        )}
+        {visible.map((msg) => (
           <MessageBubble key={msg.id} message={msg} />
         ))}
         {isStreaming && streamingText && (

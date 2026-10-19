@@ -23,8 +23,21 @@ function getProvider(settings: AppSettings, provider?: LLMProvider, model?: stri
   }
 }
 
-export function useChat(settings: AppSettings, presets?: any[]) {
-  const [conversations, setConversations] = useState<Conversation[]>(loadConversations)
+// Only the latest messages are sent to the model — keeps a never-reset chat fast and cheap
+const CONTEXT_MESSAGES = 20
+
+function contextWindow(messages: ChatMessage[]): ChatMessage[] {
+  const recent = messages.slice(-CONTEXT_MESSAGES)
+  // Gemini history must start with a user turn
+  const firstUser = recent.findIndex((m) => m.role === 'user')
+  return firstUser > 0 ? recent.slice(firstUser) : recent
+}
+
+export function useChat(settings: AppSettings, presets?: Preset[]) {
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    const agentPresetIds = new Set((presets || []).filter((p) => p.type === 'agent').map((p) => p.id))
+    return loadConversations().filter((c) => !agentPresetIds.has(c.presetId))
+  })
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingText, setStreamingText] = useState('')
@@ -40,8 +53,7 @@ export function useChat(settings: AppSettings, presets?: any[]) {
   const activeConversation = conversations.find((c) => c.id === activeConversationId) || null
 
   const persistConversations = useCallback((convs: Conversation[]) => {
-    setConversations(convs)
-    saveConversations(convs)
+    setConversations(saveConversations(convs))
   }, [])
 
   const startConversation = useCallback((presetId: string) => {
@@ -54,8 +66,7 @@ export function useChat(settings: AppSettings, presets?: any[]) {
     }
     setConversations((prev) => {
       const next = [conv, ...prev]
-      saveConversations(next)
-      return next
+      return saveConversations(next)
     })
     setActiveConversationId(conv.id)
     return conv.id
@@ -86,8 +97,7 @@ export function useChat(settings: AppSettings, presets?: any[]) {
             ? { ...c, messages: [...c.messages, userMessage], updatedAt: Date.now() }
             : c,
         )
-        saveConversations(next)
-        return next
+        return saveConversations(next)
       })
 
       // Stream assistant response
@@ -99,7 +109,7 @@ export function useChat(settings: AppSettings, presets?: any[]) {
         const preset = getPresetForConversation(convId)
         const provider = getProvider(settings, preset?.llmProvider, preset?.llmModel)
         const conv = conversations.find((c) => c.id === convId)
-        const allMessages = [...(conv?.messages || []), userMessage]
+        const allMessages = contextWindow([...(conv?.messages || []), userMessage])
 
         const fullText = await provider.sendMessage(
           allMessages,
@@ -126,8 +136,7 @@ export function useChat(settings: AppSettings, presets?: any[]) {
                 ), updatedAt: Date.now() }
               : c,
           )
-          saveConversations(next)
-          return next
+          return saveConversations(next)
         })
       } catch (error: any) {
         const errorMessage: ChatMessage = {
@@ -143,8 +152,7 @@ export function useChat(settings: AppSettings, presets?: any[]) {
               ? { ...c, messages: [...c.messages, errorMessage], updatedAt: Date.now() }
               : c,
           )
-          saveConversations(next)
-          return next
+          return saveConversations(next)
         })
       } finally {
         setIsStreaming(false)

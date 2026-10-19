@@ -9,7 +9,23 @@ function getProfilePath(): string {
   return path.join(app.getPath('userData'), 'browser-profile')
 }
 
+// Chrome holds hundreds of MB — close it when the agent hasn't used it for a while.
+// The persistent profile keeps logins, so relaunching is cheap.
+const IDLE_CLOSE_MS = 20 * 60 * 1000
+let idleTimer: NodeJS.Timeout | null = null
+
+function scheduleIdleClose() {
+  if (idleTimer) clearTimeout(idleTimer)
+  idleTimer = setTimeout(async () => {
+    if (!context) return
+    await context.close().catch(() => {})
+    context = null
+    page = null
+  }, IDLE_CLOSE_MS)
+}
+
 async function ensureBrowser(): Promise<Page> {
+  scheduleIdleClose()
   if (page && !page.isClosed()) return page
 
   if (context) {

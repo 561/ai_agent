@@ -2,24 +2,24 @@ import { useState, useCallback, useRef } from 'react'
 import { v4 as uuidv4 } from 'uuid'
 import type { ChatMessage, Conversation, AppSettings, Preset } from '../../shared/types'
 import { runAgentLoop, type AgentAction } from '../lib/agent/agent-loop'
-import { loadConversations, saveConversations } from '../lib/storage'
+import { loadAgentConversations, saveConversations, AGENT_CONVERSATIONS_KEY } from '../lib/storage'
 import { DEFAULT_AGENT_MODEL, resolveModel } from '../lib/models'
 
 export function useAgentChat(settings: AppSettings, presets: Preset[]) {
-  const [conversations, setConversations] = useState<Conversation[]>(loadConversations)
+  const [conversations, setConversations] = useState<Conversation[]>(
+    () => loadAgentConversations(new Set(presets.filter((p) => p.type === 'agent').map((p) => p.id))),
+  )
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [isRunning, setIsRunning] = useState(false)
   const [isWaitingForUser, setIsWaitingForUser] = useState(false)
   const [statusText, setStatusText] = useState('')
-  const [lastScreenshot, setLastScreenshot] = useState<string | null>(null)
   const abortRef = useRef({ aborted: false })
   const userResponseResolveRef = useRef<((answer: string) => void) | null>(null)
 
   const activeConversation = conversations.find((c) => c.id === activeConversationId) || null
 
   const persistConversations = useCallback((convs: Conversation[]) => {
-    setConversations(convs)
-    saveConversations(convs)
+    setConversations(saveConversations(convs, AGENT_CONVERSATIONS_KEY))
   }, [])
 
   const addMessage = useCallback((convId: string, msg: ChatMessage) => {
@@ -29,8 +29,7 @@ export function useAgentChat(settings: AppSettings, presets: Preset[]) {
           ? { ...c, messages: [...c.messages, msg], updatedAt: Date.now() }
           : c,
       )
-      saveConversations(next)
-      return next
+      return saveConversations(next, AGENT_CONVERSATIONS_KEY)
     })
   }, [])
 
@@ -44,8 +43,7 @@ export function useAgentChat(settings: AppSettings, presets: Preset[]) {
     }
     setConversations((prev) => {
       const next = [conv, ...prev]
-      saveConversations(next)
-      return next
+      return saveConversations(next, AGENT_CONVERSATIONS_KEY)
     })
     setActiveConversationId(conv.id)
     return conv.id
@@ -140,9 +138,7 @@ export function useAgentChat(settings: AppSettings, presets: Preset[]) {
               addMessage(convId, errMsg)
               setStatusText('')
             },
-            onScreenshot: (base64) => {
-              setLastScreenshot(base64)
-            },
+            onScreenshot: () => {},
           },
           abortRef.current,
           preset?.systemInstruction,
@@ -216,7 +212,6 @@ export function useAgentChat(settings: AppSettings, presets: Preset[]) {
     isRunning,
     isWaitingForUser,
     statusText,
-    lastScreenshot,
     stopAgent,
     clearConversation,
   }
