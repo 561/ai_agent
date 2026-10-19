@@ -3,7 +3,10 @@ import { GEMINI_CONTEXT_LIMIT } from '../lib/models'
 import { useI18n } from '../lib/i18n'
 
 interface Props {
+  // Real usage reported by the API; undefined until the chat gets its next reply
   tokens?: number
+  // Used (and shown with "~") while there is no real number yet
+  fallbackTokens?: number
   // Matches the neighbouring buttons so the row lines up
   boxSize: number
 }
@@ -14,7 +17,9 @@ const RADIUS = (SIZE - STROKE) / 2
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
 // Share of the model's context window the latest request used; exact tokens on hover
-export function ContextRing({ tokens = 0, boxSize }: Props) {
+export function ContextRing({ tokens: reported, fallbackTokens = 0, boxSize }: Props) {
+  const isEstimate = reported === undefined
+  const tokens = reported ?? fallbackTokens
   const { t } = useI18n()
   const ratio = Math.min(tokens / GEMINI_CONTEXT_LIMIT, 1)
   const percent = ratio * 100
@@ -43,7 +48,7 @@ export function ContextRing({ tokens = 0, boxSize }: Props) {
         className="hidden group-hover:block absolute bottom-full right-0 mb-2 whitespace-nowrap rounded-md text-xs text-white bg-gray-900 shadow-lg z-10"
         style={{ padding: 'var(--padding-xs) var(--padding-sm)' }}
       >
-        {t('context')}: {tokens.toLocaleString()} / {GEMINI_CONTEXT_LIMIT.toLocaleString()} {t('tokens')} ({percentLabel}%)
+        {t('context')}: {isEstimate ? '~' : ''}{tokens.toLocaleString()} / {GEMINI_CONTEXT_LIMIT.toLocaleString()} {t('tokens')} ({percentLabel}%)
       </div>
     </div>
   )

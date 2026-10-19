@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { MessageBubble } from './MessageBubble'
 import { ContextRing } from './ContextRing'
+import { estimateTokens } from '../lib/models'
 import { ImagePreview } from './ImagePreview'
 import { useVisibleMessages } from '../hooks/useVisibleMessages'
 import { useImageAttachments } from '../hooks/useImageAttachments'
@@ -115,7 +116,7 @@ export function CompactChat({ conversation, isStreaming, streamingText, onSend, 
             className="flex-1 resize-none bg-surface-100 dark:bg-surface-800 rounded-lg text-xs outline-none focus:ring-1 focus:ring-blue-500 dark:text-white max-h-20 overflow-y-auto"
             style={{ minHeight: '30px', padding: 'var(--padding-sm) var(--padding)' }}
           />
-          <ContextRing tokens={conversation?.contextTokens} boxSize={30} />
+          <ContextRing tokens={conversation?.contextTokens} fallbackTokens={estimateTokens(messages.slice(-10))} boxSize={30} />
           {isStreaming ? (
             <button
               onClick={onStop}

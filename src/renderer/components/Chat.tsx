@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { MessageBubble } from './MessageBubble'
 import { ContextRing } from './ContextRing'
+import { estimateTokens } from '../lib/models'
 import { useVisibleMessages } from '../hooks/useVisibleMessages'
 import { useImageAttachments } from '../hooks/useImageAttachments'
 import { ImagePreview } from './ImagePreview'
@@ -223,7 +224,7 @@ export function Chat({ conversation, isStreaming, streamingText, onSend, onStop,
               </svg>
             )}
           </button>
-          <ContextRing tokens={conversation?.contextTokens} boxSize={36} />
+          <ContextRing tokens={conversation?.contextTokens} fallbackTokens={estimateTokens(messages.slice(-20))} boxSize={36} />
           {isStreaming ? (
             <button
               onClick={onStop}
