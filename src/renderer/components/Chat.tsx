@@ -4,6 +4,7 @@ import { ContextRing } from './ContextRing'
 import { estimateTokens } from '../lib/models'
 import { useVisibleMessages } from '../hooks/useVisibleMessages'
 import { useImageAttachments } from '../hooks/useImageAttachments'
+import { useDraft } from '../hooks/useDraft'
 import { ImagePreview } from './ImagePreview'
 import type { ChatMessage, ImageAttachment, Conversation } from '../../shared/types'
 import { useI18n } from '../lib/i18n'
@@ -16,11 +17,12 @@ interface Props {
   onStop: () => void
   groqApiKey?: string
   focusSignal?: number
+  draftKey: string
 }
 
-export function Chat({ conversation, isStreaming, streamingText, onSend, onStop, groqApiKey, focusSignal }: Props) {
+export function Chat({ conversation, isStreaming, streamingText, onSend, onStop, groqApiKey, focusSignal, draftKey }: Props) {
   const { t } = useI18n()
-  const [input, setInput] = useState('')
+  const [input, setInput] = useDraft(draftKey)
   const { images, handlePaste, handleDrop, handleFileSelect, removeImage, clearImages } = useImageAttachments()
   const [isRecording, setIsRecording] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)

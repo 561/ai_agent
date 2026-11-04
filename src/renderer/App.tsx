@@ -110,25 +110,10 @@ export function App() {
       // Sync window mode to main process on startup
       ipcRenderer.send('update-window-mode', settings.windowMode || 'cursor')
 
-      // ESC to hide window; Ctrl+Shift+Arrow to switch tabs
+      // ESC to hide window
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') {
           ipcRenderer.send('hide-window')
-          return
-        }
-
-        if (e.ctrlKey && e.shiftKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-          if (viewRef.current !== 'chat') return
-          e.preventDefault()
-          const ps = presetsRef.current
-          const currentIndex = ps.findIndex((p) => p.id === activePresetIdRef.current)
-          if (currentIndex === -1 || ps.length <= 1) return
-          const nextIndex =
-            e.key === 'ArrowRight'
-              ? (currentIndex + 1) % ps.length
-              : (currentIndex - 1 + ps.length) % ps.length
-          handlePresetSelectRef.current(ps[nextIndex].id)
-          triggerChatFocus()
         }
       }
       window.addEventListener('keydown', handleKeyDown)
@@ -356,6 +341,7 @@ export function App() {
             onStop={stopAgent}
             focusSignal={chatFocusSignal}
             preset={activePreset}
+            draftKey={activePresetId}
           />
         ) : (
           <Chat
@@ -366,6 +352,7 @@ export function App() {
             onStop={stopStreaming}
             groqApiKey={settings.apiKeys.groq}
             focusSignal={chatFocusSignal}
+            draftKey={activePresetId}
           />
         )}
       </div>

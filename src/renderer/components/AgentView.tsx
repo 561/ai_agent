@@ -13,9 +13,10 @@ interface Props {
   onStop: () => void
   focusSignal?: number
   preset: Preset
+  draftKey: string
 }
 
-export function AgentView({ conversation, isRunning, isWaitingForUser, statusText, onSendTask, onRespondToAgent, onStop, focusSignal }: Props) {
+export function AgentView({ conversation, isRunning, isWaitingForUser, statusText, onSendTask, onRespondToAgent, onStop, focusSignal, draftKey }: Props) {
   const { t } = useI18n()
 
   return (
@@ -51,6 +52,7 @@ export function AgentView({ conversation, isRunning, isWaitingForUser, statusTex
           onSend={(content, images) => isWaitingForUser ? onRespondToAgent(content) : onSendTask(content, images)}
           onStop={onStop}
           focusSignal={focusSignal}
+          draftKey={draftKey}
         />
       </div>
     </div>

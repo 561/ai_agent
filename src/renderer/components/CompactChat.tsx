@@ -5,6 +5,7 @@ import { estimateTokens } from '../lib/models'
 import { ImagePreview } from './ImagePreview'
 import { useVisibleMessages } from '../hooks/useVisibleMessages'
 import { useImageAttachments } from '../hooks/useImageAttachments'
+import { useDraft } from '../hooks/useDraft'
 import { useI18n } from '../lib/i18n'
 import type { Conversation, ImageAttachment } from '../../shared/types'
 
@@ -15,11 +16,12 @@ interface Props {
   onSend: (content: string, images: ImageAttachment[]) => void
   onStop: () => void
   focusSignal?: number
+  draftKey: string
 }
 
-export function CompactChat({ conversation, isStreaming, streamingText, onSend, onStop, focusSignal }: Props) {
+export function CompactChat({ conversation, isStreaming, streamingText, onSend, onStop, focusSignal, draftKey }: Props) {
   const { t } = useI18n()
-  const [input, setInput] = useState('')
+  const [input, setInput] = useDraft(draftKey)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
